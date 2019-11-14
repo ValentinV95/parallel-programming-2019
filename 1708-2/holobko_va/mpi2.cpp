@@ -25,25 +25,24 @@ bool TestCube(MPI_Comm New_Comm, int ndims, int SizeNodeHyperCube, int local_dat
 int main(int argc, char** argv) {
 	MPI_Comm Old_Comm = MPI_COMM_WORLD, New_Comm;
 	int ProcSize, reorder = 1, ProcRank;
-	int local_data = 1; //1
-	int ndims = 4;      //4
-	int SizeNodeHyperCube = 2; //2
-	int count_dim;
-	int* dim_size = new int[ndims];
-	int* periods = new int[ndims];
-	int* coord = new int[ndims];
+	int local_data = 1, ndims = 4, SizeNodeHyperCube = 2, count_dim;
+	int* dim_size, *periods, *coord;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &ProcSize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
 	if (ProcRank == 0) {
-	//	local_data = atoi(argv[2]);
-		cout << local_data; fflush(stdout);;
+		 local_data = atoi(argv[1]);
+		 ndims = atoi(argv[2]);
+		 SizeNodeHyperCube = atoi(argv[3]);
 	}
+	 dim_size = new int[ndims];
+	 periods = new int[ndims];
+	 coord = new int[ndims];
 	for (int i = 0; i < ndims; i++) {
 		dim_size[i] = SizeNodeHyperCube;
 		periods[i] = 1;
 	}
-	MPI_Cart_create(Old_Comm, ndims, dim_size, periods, reorder, &New_Comm);
+	MPI_Cart_create(MPI_COMM_WORLD, ndims, dim_size, periods, reorder, &New_Comm);
 	MPI_Cartdim_get(New_Comm, &count_dim);
 	MPI_Cart_get(New_Comm, ndims, dim_size, periods, coord);
 	for (int i = 0; i < ndims; i++) {
