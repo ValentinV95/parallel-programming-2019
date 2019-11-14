@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "mpi.h"
 #include <stdio.h>
 #include <iostream>
@@ -25,19 +25,17 @@ bool TestCube(MPI_Comm New_Comm, int ndims, int SizeNodeHyperCube, int local_dat
 int main(int argc, char** argv) {
 	MPI_Comm Old_Comm = MPI_COMM_WORLD, New_Comm;
 	int ProcSize, reorder = 1, ProcRank;
-	int local_data = 1, ndims = 4, SizeNodeHyperCube = 2, count_dim;
+	int local_data = 0, ndims = 0, SizeNodeHyperCube = 0, count_dim;
 	int* dim_size, *periods, *coord;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &ProcSize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &ProcRank);
-	if (ProcRank == 0) {
-		 local_data = atoi(argv[1]);
-		 ndims = atoi(argv[2]);
-		 SizeNodeHyperCube = atoi(argv[3]);
-	}
-	 dim_size = new int[ndims];
-	 periods = new int[ndims];
-	 coord = new int[ndims];
+	local_data = atoi(argv[1]);
+	ndims = atoi(argv[2]);
+	SizeNodeHyperCube = atoi(argv[3]);
+	dim_size = new int[ndims];
+	periods = new int[ndims];
+	coord = new int[ndims];
 	for (int i = 0; i < ndims; i++) {
 		dim_size[i] = SizeNodeHyperCube;
 		periods[i] = 1;
