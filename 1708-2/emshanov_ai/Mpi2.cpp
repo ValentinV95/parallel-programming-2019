@@ -1,3 +1,4 @@
+#include "pch.cpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -37,7 +38,7 @@ void philosopher(int myrank) {
 }
 
 /* Table function - only table process run this */
-void table(int myrank, int nprocs) {
+void table(int myrank, int nprocs, int sizew) {
   printf("Hello from table %d \n", myrank);
   int in_buffer[1];
   int out_buffer[1];
@@ -46,8 +47,8 @@ void table(int myrank, int nprocs) {
 
   std::list<int> queue;
 
-  bool *fork = new bool[nprocs - 1];
-  for (int i = 0; i < nprocs - 1; i++) fork[i] = true; //Init all forks as free
+  bool *fork = new bool[sizew];
+  for (int i = 0; i < sizew; i++) fork[i] = true; //Init all forks as free
   //Table main loop
   while (true) {
     MPI_Recv(in_buffer, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &stat); // Recive next message
@@ -55,8 +56,8 @@ void table(int myrank, int nprocs) {
 
     if (stat.MPI_TAG == NEED_FORK) { //If Request for forks
       printf("Table got philosopher %d fork request\n", philosopher);
-      if (fork[philosopher % (nprocs - 1)] == true && fork[philosopher - 1] == true) { //If both forks are free
-        fork[philosopher % (nprocs - 1)] = false; //Set the forks as taken
+      if (fork[philosopher % (sizew)] == true && fork[philosopher - 1] == true) { //If both forks are free
+        fork[philosopher % (sizew)] = false; //Set the forks as taken
         fork[philosopher - 1] = false;
         MPI_Send(out_buffer, 1, MPI_REAL, philosopher, FORK_RESPONSE, MPI_COMM_WORLD); // Send Fork response to the right philosopher
         printf("Table sent philosopher %d the forks\n", philosopher);
@@ -65,15 +66,15 @@ void table(int myrank, int nprocs) {
         queue.push_back(philosopher); //Put in wait queue
     }
     if (stat.MPI_TAG == FORK_RELEASE) { //If Release of forks
-      fork[philosopher % (nprocs - 1)] = true; //Set forks to free again
+      fork[philosopher % (sizew)] = true; //Set forks to free again
       fork[philosopher - 1] = true;
       printf("Table got philosopher %d fork release\n", philosopher);
 
       if (!queue.empty()) { //If philosopher waiting for forks
         for (std::list<int>::iterator it = queue.begin(); it != queue.end(); it++) { //Go through whole list of waiting philosophers
           philosopher = *it;
-          if (fork[philosopher % (nprocs - 1)] == true && fork[philosopher - 1] == true) { //If one of them can get both forks
-            fork[philosopher % (nprocs - 1)] = false;
+          if (fork[philosopher % (sizew)] == true && fork[philosopher - 1] == true) { //If one of them can get both forks
+            fork[philosopher % (sizew)] = false;
             fork[philosopher - 1] = false;
             MPI_Send(out_buffer, 1, MPI_INT, philosopher, FORK_RESPONSE, MPI_COMM_WORLD); // send Fork response
             printf("Table sent philosopher %d the forks\n", philosopher);
@@ -93,11 +94,12 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  int sizew = atoi(1);
 
   //Depending on rank, Philosopher or Table
   if (myrank == 0)
   {
-    table(myrank, nprocs);
+    table(myrank, nprocs, sizew);
   }
   else
   {
