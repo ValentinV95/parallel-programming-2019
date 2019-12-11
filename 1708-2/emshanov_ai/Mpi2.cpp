@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-  int sizew = atoi(1);
+  int sizew = atoi(argv[1]);
 
   //Depending on rank, Philosopher or Table
   if (myrank == 0)
