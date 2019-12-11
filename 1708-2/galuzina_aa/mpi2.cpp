@@ -1,99 +1,148 @@
-#include <stdio.h>
-#include <mpi.h>
-#include <time.h>
+#include "mpi.h"
+#include <vector>
+#include <string>
+#include <random>
 #include <stdlib.h>
+#include <ctime>
+#include <algorithm>
+#include <stdio.h>
+#include <iostream>
 #include <math.h>
+#include <ctime>
+#include <cmath>
+#include <string>
 
+using namespace std;
 
-
-int main(int argc, char** argv) {
-	MPI_Init(&argc, &argv);
-
-	int world_rank, nranks;
-	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-
-	const int MAX_NUMBERS = 100;
-	int numbers[MAX_NUMBERS];
-	for (int i = 0; i < MAX_NUMBERS; i++) {
-		numbers[i] = i;
+int getPositive_elem(std::vector<int> vector, int count_size_vector) {
+	if (count_size_vector < 2) {
+		return 0;
 	}
-	double roots[MAX_NUMBERS];
-	int number_amount;
-	if (world_rank == 0) { // Producer
-		srand(time(NULL));
-		number_amount = (rand() / (float)RAND_MAX) * MAX_NUMBERS;
-		printf("[0] Distributing %i numbers in total.\n", number_amount); //Распределение номеров
-
-		for (int nextnum = 1; nextnum <= number_amount; ++nextnum) {
-			// Ждет пока работающий станет доступным
-			MPI_Status status;
-			double root = 0;
-			MPI_Recv(&root, 1, MPI_DOUBLE, MPI_ANY_SOURCE,
-				MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-
-			// Если корень был вычислен
-			if (status.MPI_TAG > 0) {
-				roots[status.MPI_TAG] = root;
-			}
-
-			printf("[0] Distributing %i to rank %i.\n", numbers[nextnum], status.MPI_SOURCE); //Распределение по рангу
-			MPI_Send(&(numbers[nextnum]), 1, MPI_INT, status.MPI_SOURCE,
-				nextnum, MPI_COMM_WORLD);
-		}
-
-		// Сигнал завершения каждому рангу, когда они отправляют свою последнюю работу
-		int num_terminated = 0;
-		for (int num_terminated = 0; num_terminated < nranks - 1; num_terminated++) {
-			// Ждет пока работающий станет доступным
-			MPI_Status status;
-			double root = 0;
-			MPI_Recv(&root, 1, MPI_DOUBLE, MPI_ANY_SOURCE,
-				MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-
-			// Если корень был вычислен
-			if (status.MPI_TAG > 0) {
-				roots[status.MPI_TAG] = root;
-			}
-
-			printf("[0] Terminating rank %i.\n", status.MPI_SOURCE); //Завершающий ранг
-			// Отправить сигнал завершения (tag = 0)
-			MPI_Send(&num_terminated, 1, MPI_INT, status.MPI_SOURCE,
-				0, MPI_COMM_WORLD);
+	int negative_elem = 0;
+	for (int c = 0; c < count_size_vector; c++) {
+		if (vector[c] == -1) {
+			negative_elem++;
 		}
 	}
-	else { // Consumer
-		   // Объявить себя Producer
-		double root = 0;
-		MPI_Send(&root, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-		bool terminated = false;
-
-		do {
-			// Wait for a job
-			int num = 0;
-			MPI_Status status;
-			MPI_Recv(&num, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-			//printf("[%i] Received job: %i [tag = %i].\n", world_rank, num, status.MPI_TAG);
-			if (status.MPI_TAG == 0) {
-				terminated = true;
-				printf("[%i] Terminated.\n", world_rank); //Отменено
-			}
-			else {
-				root = sqrt(num);
-				printf("[%i] Submitting result: sqrt(%i) = %f.\n", world_rank, num, root); //Отправка результата
-				MPI_Send(&root, 1, MPI_DOUBLE, 0, status.MPI_TAG, MPI_COMM_WORLD);
-			}
-		} while (!terminated);
+	return vector.size() - negative_elem;
+}
+int* Create_dinamic_massiv_from_vector(std::vector<int> vec) {
+	int vec_size = vec.size();
+	int* mas = new int[vec_size];
+	for (int i = 0; i < vec_size; i++) {
+		mas[i] = vec[i];
 	}
+	return mas;
+}
 
+int Consumer(int *buffer, int buffer_size, int rank_proc, int* resurce) {
+	int size, rank;
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (size == 1 || rank_proc == 0) {
+		for (int i = 0; i < buffer_size; i++) {
+			if (buffer[i] != -1) {
+				*resurce = buffer[i];
+				buffer[i] = -1;
+				break;
+			}
+		}
+	}
+	else {
+		if (rank == 0) {
+			int temp_resurs;
+			for (int i = 0; i < buffer_size; i++) {
+				if (buffer[i] != -1) {
+					temp_resurs = buffer[i];
+					buffer[i] = -1;
+					break;
+				}
+			}
+			MPI_Send(&temp_resurs, 1, MPI_INT, rank_proc, 0, MPI_COMM_WORLD);
+		}
+		else {
+			if (rank == rank_proc) {
+				int temp_resurs;
+				MPI_Recv(&temp_resurs, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				*resurce = temp_resurs;
+			}
+		}
+	}
 	MPI_Barrier(MPI_COMM_WORLD);
-
-	if (world_rank == 0) {
-		printf("\n\nResults:\n");
-		for (int i = 1; i <= number_amount; i++) {
-			printf("sqrt(%i) = %f\n", numbers[i], roots[i]);
+	return 0;
+}
+int Producer(int *buffer, int buffer_size, int rank_proc, int resurce) {
+	int size, rank;
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (size == 1 || rank_proc == 0) {
+		for (int i = 0; i < buffer_size; i++) {
+			if (buffer[i] == -1) {
+				buffer[i] = resurce;
+				break;
+			}
 		}
 	}
-
+	else {
+		if (rank == 0) {
+			int resurce_for_bufer;
+			MPI_Recv(&resurce_for_bufer, 1, MPI_INT, rank_proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			for (int i = 0; i < buffer_size; i++) {
+				if (buffer[i] == -1) {
+					buffer[i] = resurce;
+					break;
+				}
+			}
+		}
+		else {
+			if (rank == rank_proc) {
+				MPI_Send(&resurce, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+			}
+		}
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	return 0;
+}
+int main(int argc, char** argv)
+{
+	int rank, size;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	int kol_elem_in_buffer = 100;
+	int *buffer = new int[kol_elem_in_buffer];
+	for (int i = 0; i < kol_elem_in_buffer; i++) {
+		buffer[i] = -1;
+	}
+	int kol_resursov = atoi(argv[1]);
+	if (size == 1) {
+		for (int i = 0; i < kol_resursov; i++) {
+			Producer(buffer, kol_elem_in_buffer, rank, i);
+		}
+		std::vector<int> resurce_consume1(kol_resursov, -1);
+		int *resurce_consume;
+		resurce_consume = Create_dinamic_massiv_from_vector(resurce_consume1);
+		for (int i = 0; i < kol_resursov; i++) {
+			Consumer(buffer, kol_elem_in_buffer, rank, &resurce_consume[i]);
+			cout << resurce_consume[i] << "\n";
+		}
+	}
+	else {
+		for (int i = 0; i < kol_resursov; i++) {
+			Producer(buffer, kol_elem_in_buffer, 1, i);
+		}
+		std::vector<int> resurce_consume1(kol_resursov, -1);
+		int *resurce_consume;
+		resurce_consume = Create_dinamic_massiv_from_vector(resurce_consume1);
+		for (int i = 0; i < kol_resursov; i++) {
+			Consumer(buffer, kol_elem_in_buffer, 1, &resurce_consume[i]);
+		}
+		if (rank == 1) {
+			for (int i = 0; i < kol_resursov; i++) {
+				cout << resurce_consume[i] << "\n";
+			}
+		}
+	}
 	MPI_Finalize();
+	return 0;
 }
