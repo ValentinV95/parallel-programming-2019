@@ -17,6 +17,21 @@
 
 using namespace std;
 
+std::vector<int> BSort(std::vector<int> vec)
+{
+	int temp;
+	for (int i = 0; i < vec.size() - 1; i++) {
+		for (int j = 0; j < vec.size() - i - 1; j++) {
+			if (&vec[j] > &vec[j + 1]) {
+				temp = vec[j];
+				vec[j] = vec[j + 1];
+				vec[j + 1] = temp;
+			}
+		}
+	}
+	return vec;
+}
+
 std::vector<int> GetRandVec(int size) {
 	if (size <= 0)
 		throw - 1;
@@ -24,7 +39,7 @@ std::vector<int> GetRandVec(int size) {
 	std::mt19937 el;
 	el.seed(static_cast<unsigned int>(time(0)));
 	for (int i = 0; i < size; i++) {
-		vec[i] = el() % 1000000000;
+		vec[i] = el() % 1000000;
 	}
 	return vec;
 }
@@ -180,26 +195,41 @@ std::vector<int> Par_Radix_sort(const std::vector<int>& source) {
 }
 
 int main(int argc, char** argv) {
+	double st1, st2, et1, et2;
 	MPI_Init(&argc, &argv);
-	int rank, size,SizeV=10;
+	int rank, size, SizeV = 10,lc=0;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	SizeV = atoi(argv[1]);
+	std::vector<int> bvec;
 	std::vector<int> vec;
 	std::vector<int> res;
 	vec = GetRandVec(SizeV);
 	if (rank == 0) {
-	//	for (int i = 0; i < SizeV; i++)
-	//		cout << "1-" << vec[i] << " ";
+		st1 = MPI_Wtime();
+		bvec = BSort(vec);
 	}
-
+	st2 = MPI_Wtime();
 	res = Par_Radix_sort(vec);
 
 	if (rank == 0) {
-	//	for (int i = 0; i < SizeV; i++)
-	//		cout << "2-" << res[i]<<" ";
+		et1 = MPI_Wtime()-st1;
+		et2 = MPI_Wtime()-st2;
+		cout << "Time_Paralel_Bitwise_Sort:" << et2 << std::fixed << " sec \n";
+		cout << "Time_Sinlgle_Bubbly_Sort:" << et1  << std::fixed << " sec \n";
+		if (et1 < et2)
+			cout << "Sinlgle_Bubbly_Sort:_Faster \n";
+		else
+			cout << "Paralel_Bitwise_Sort:_Faster \n";
+		for (int i = 0; i <= SizeV;i++) {
+			if (vec[i] != res[i])
+				lc++;
+		}
+		if (lc != 0)
+			cout << "Sort_Will_Compleate \n";
+		else
+			throw - 1;
 	}
-
 	MPI_Finalize();
 	return 0;
 }
