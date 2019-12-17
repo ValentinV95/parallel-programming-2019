@@ -1,88 +1,167 @@
 ﻿#include "pch.h"
-#include "mpi.h"
-#include <stdio.h>
-#include <iostream>
-#include <math.h>
-#include <ctime>
-#include <cmath>
-#include <vector>
-#include <string>
-using namespace std;
+#include<stdio.h>
+#include<mpi.h>
+#include<time.h>
 
-bool IsRingTopology(MPI_Comm comm) {
-	int status;
-	MPI_Topo_test(comm, &status);
-	if (status != MPI_CART)
-		return false;
+#define M 320
+#define N 40
+#define NUM_DIMS 1
 
-	int ndims;
-	MPI_Cartdim_get(comm, &ndims);
-	if (ndims != 1)
-		return false;
+#define EL(x) (sizeof(x) / sizeof(x[0][0]))
 
-	std::vector<int> dims(ndims), periods(ndims), coords(ndims);
-	MPI_Cart_get(comm, ndims, dims.data(), periods.data(), coords.data());
-	if (periods[0] != 1)
-		return false;
+static double A[N][M], B[M][N], C[N][M];
 
-	return true;
-}
+int main(int argc, char **argv)
 
-std::vector<int> Send(MPI_Comm ringcomm, int source, int dest,
-	std::vector <int> message, int mess_size) {
-	int size, rank;
-	MPI_Comm_size(ringcomm, &size);
-	MPI_Comm_rank(ringcomm, &rank);
-	std::vector<int> result;
+{
+	int        rank, size, i, j, k, i1, j1, d, sour, dest;
 
-	if (source > (size - 1) || source < 0 || dest >(size - 1) || dest < 0)
-		throw - 1;
+	int        dims[NUM_DIMS], periods[NUM_DIMS], new_coords[NUM_DIMS];
 
-	if (((rank >= source) && (rank <= dest)) ||
-		((dest - source < 0) && ((rank >= source) || (rank <= dest)))) {
-		if (dest == source)
-			return message;
+	int        reorder = 0;
 
-		int curr_dest, curr_source;
-		MPI_Status status;
+	MPI_Comm   comm_cart;
 
-		MPI_Cart_shift(ringcomm, 0, 1, &curr_source, &curr_dest);
+	MPI_Status st;
 
-		if (rank == source) {
-			MPI_Send(&message[0], mess_size, MPI_INT, curr_dest, 1, ringcomm);
+	int dt1;
+
+	/* Инициализация библиотеки MPI*/
+
+	MPI_Init(&argc, &argv);
+
+	/* Каждая ветвь узнает количество задач в стартовавшем приложении */
+
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+	/* и свой собственный номер: от 0 до (size-1) */
+
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+	/* Обнуляем массив dims и заполняем массив periods для топологии "кольцо" */
+
+	for (i = 0; i < NUM_DIMS; i++) { dims[i] = 0; periods[i] = 1; }
+
+	/* Заполняем массив dims, где указываются размеры (одномерной) решетки */
+
+	MPI_Dims_create(size, NUM_DIMS, dims);
+
+	/* Создаем топологию "кольцо" с communicator(ом) comm_cart */
+
+	MPI_Cart_create(MPI_COMM_WORLD, NUM_DIMS, dims, periods, reorder,
+
+		&comm_cart);
+
+	/* Отображаем ранги на координаты компьютеров, с целью оптимизации
+
+	 * отображения заданой виртуальной топологии на физическую топологию
+
+	 * системы. */
+
+	MPI_Cart_coords(comm_cart, rank, NUM_DIMS, new_coords);
+
+	/* Каждая ветвь находит своих соседей вдоль кольца, в направлении
+
+	 * меньших значений рангов */
+
+	MPI_Cart_shift(comm_cart, 0, -1, &sour, &dest);
+
+	/* Каждая ветвь генерирует полосы исходных матриц A и B, полосы C обнуляет */
+
+	for (i = 0; i < N; i++)
+
+	{
+		for (j = 0; j < M; j++)
+
+		{
+			A[i][j] = 3.141528;
+
+			B[j][i] = 2.812;
+
+			C[i][j] = 0.0;
+
 		}
-		else if (rank == dest) {
-			result.resize(mess_size);
-			MPI_Recv(&result[0], mess_size, MPI_INT, curr_source, 1, ringcomm, &status);
-		}
-		else {
-			std::vector<int> *tmp = new std::vector<int>;
-			tmp->resize(mess_size);
 
-			MPI_Recv(&((*tmp)[0]), mess_size, MPI_INT, curr_source, 1, ringcomm, &status);
-			MPI_Send(&((*tmp)[0]), mess_size, MPI_INT, curr_dest, 1, ringcomm);
-
-			delete tmp;
-		}
 	}
-	return result;
-}
 
-int main(int argc, char* argv[]) {
-	MPI_Comm oldcomm = MPI_COMM_WORLD;
-	MPI_Comm ringcomm;
-	MPI_Init(&argc, &argv); 
-	std::vector<int> dims(1), periods(1);
+	/* Засекаем начало умножения матриц */
 
-	MPI_Comm_size(oldcomm, &dims[0]);
-	periods[0] = 1;
+	/* Каждая ветвь производит умножение своих полос матриц */
 
-	MPI_Cart_create(oldcomm, 1, dims.data(), periods.data(), 0, &ringcomm);
+	/* Самый внешний цикл for(k) - цикл по компьютерам */
 
-	bool IsW = IsRingTopology(ringcomm);
-	cout << IsW;
-	int res = (ringcomm, -1, 0, 1024, 3);
-	cout << res;
+	for (k = 0; k < size; k++)
+
+	{
+
+		/* Каждая ветвь вычисляет координаты (вдоль строки) для результирующих
+
+		 * элементов матрицы C, которые зависят от номера цикла k и
+
+		 * ранга компьютера. */
+
+		d = ((rank + k) % size)*N;
+
+		/* Каждая ветвь производит умножение своей полосы матрицы A на
+
+		 * текущую полосу матрицы B */
+
+		for (j = 0; j < N; j++)
+
+		{
+			for (i1 = 0, j1 = d; j1 < d + N; j1++, i1++)
+
+			{
+				for (i = 0; i < M; i++)
+
+					C[j][j1] += A[j][i] * B[i][i1];
+
+			}
+
+		}
+
+		/* Умножение полосы строк матрицы A на полосу столбцов матрицы B в каждой
+
+		 * ветви завершено */
+
+		 /* Каждая ветвь передает своим соседним ветвям с меньшим рангом
+
+		  * вертикальные полосы матрицы B. Т.е. полосы матрицы B сдвигаются вдоль
+
+		  * кольца компьютеров */
+
+		MPI_Sendrecv_replace(B, EL(B), MPI_DOUBLE, dest, 12, sour, 12,
+
+			comm_cart, &st);
+
+	}
+
+	/* Умножение завершено. Каждая ветвь умножила свою полосу строк матрицы A на
+
+	 * все полосы столбцов матрицы B.
+
+	 * Засекаем время и результат печатаем */
+	/* Для контроля печатаем первые четыре элемента первой строки результата */
+
+	if (rank == 0)
+
+	{
+		for (i = 0; i < 1; i++)
+
+			for (j = 0; j < 4; j++)
+
+				printf("C[i][j] = %f\n", C[i][j]);
+
+	}
+
+	/* Все ветви завершают системные процессы, связанные с топологией comm_cart
+
+	 * и завершаю выполнение программы */
+
+	MPI_Comm_free(&comm_cart);
+
 	MPI_Finalize();
-	return 0;
+
+	return(0);
+
 }
