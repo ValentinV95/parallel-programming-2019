@@ -11,6 +11,7 @@
 #include <ctime>
 #include <cmath>
 #include <string>
+#include <Windows.h>
 
 using namespace std;
 
@@ -105,6 +106,7 @@ int Producer(int *buffer, int buffer_size, int rank_proc, int resurce) {
 }
 int main(int argc, char** argv)
 {
+	setlocale(LC_ALL, "Russian");
 	int rank, size;
 	double st1, st2, et1, et2;  //time
 	MPI_Init(&argc, &argv); //принимает данные с консоли иницализирует работы 
