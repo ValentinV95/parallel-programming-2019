@@ -1,167 +1,117 @@
 ﻿#include "pch.h"
-#include<stdio.h>
-#include<mpi.h>
-#include<time.h>
-
-#define M 320
-#define N 40
-#define NUM_DIMS 1
-
-#define EL(x) (sizeof(x) / sizeof(x[0][0]))
-
-static double A[N][M], B[M][N], C[N][M];
-
-int main(int argc, char **argv)
-
-{
-	int        rank, size, i, j, k, i1, j1, d, sour, dest;
-
-	int        dims[NUM_DIMS], periods[NUM_DIMS], new_coords[NUM_DIMS];
-
-	int        reorder = 0;
-
-	MPI_Comm   comm_cart;
-
-	MPI_Status st;
-
-	int dt1;
-
-	/* Инициализация библиотеки MPI*/
-
-	MPI_Init(&argc, &argv);
-
-	/* Каждая ветвь узнает количество задач в стартовавшем приложении */
-
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-	/* и свой собственный номер: от 0 до (size-1) */
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-	/* Обнуляем массив dims и заполняем массив periods для топологии "кольцо" */
-
-	for (i = 0; i < NUM_DIMS; i++) { dims[i] = 0; periods[i] = 1; }
-
-	/* Заполняем массив dims, где указываются размеры (одномерной) решетки */
-
-	MPI_Dims_create(size, NUM_DIMS, dims);
-
-	/* Создаем топологию "кольцо" с communicator(ом) comm_cart */
-
-	MPI_Cart_create(MPI_COMM_WORLD, NUM_DIMS, dims, periods, reorder,
-
-		&comm_cart);
-
-	/* Отображаем ранги на координаты компьютеров, с целью оптимизации
-
-	 * отображения заданой виртуальной топологии на физическую топологию
-
-	 * системы. */
-
-	MPI_Cart_coords(comm_cart, rank, NUM_DIMS, new_coords);
-
-	/* Каждая ветвь находит своих соседей вдоль кольца, в направлении
-
-	 * меньших значений рангов */
-
-	MPI_Cart_shift(comm_cart, 0, -1, &sour, &dest);
-
-	/* Каждая ветвь генерирует полосы исходных матриц A и B, полосы C обнуляет */
-
-	for (i = 0; i < N; i++)
-
-	{
-		for (j = 0; j < M; j++)
-
-		{
-			A[i][j] = 3.141528;
-
-			B[j][i] = 2.812;
-
-			C[i][j] = 0.0;
-
-		}
-
-	}
-
-	/* Засекаем начало умножения матриц */
-
-	/* Каждая ветвь производит умножение своих полос матриц */
-
-	/* Самый внешний цикл for(k) - цикл по компьютерам */
-
-	for (k = 0; k < size; k++)
-
-	{
-
-		/* Каждая ветвь вычисляет координаты (вдоль строки) для результирующих
-
-		 * элементов матрицы C, которые зависят от номера цикла k и
-
-		 * ранга компьютера. */
-
-		d = ((rank + k) % size)*N;
-
-		/* Каждая ветвь производит умножение своей полосы матрицы A на
-
-		 * текущую полосу матрицы B */
-
-		for (j = 0; j < N; j++)
-
-		{
-			for (i1 = 0, j1 = d; j1 < d + N; j1++, i1++)
-
-			{
-				for (i = 0; i < M; i++)
-
-					C[j][j1] += A[j][i] * B[i][i1];
-
-			}
-
-		}
-
-		/* Умножение полосы строк матрицы A на полосу столбцов матрицы B в каждой
-
-		 * ветви завершено */
-
-		 /* Каждая ветвь передает своим соседним ветвям с меньшим рангом
-
-		  * вертикальные полосы матрицы B. Т.е. полосы матрицы B сдвигаются вдоль
-
-		  * кольца компьютеров */
-
-		MPI_Sendrecv_replace(B, EL(B), MPI_DOUBLE, dest, 12, sour, 12,
-
-			comm_cart, &st);
-
-	}
-
-	/* Умножение завершено. Каждая ветвь умножила свою полосу строк матрицы A на
-
-	 * все полосы столбцов матрицы B.
-
-	 * Засекаем время и результат печатаем */
-	/* Для контроля печатаем первые четыре элемента первой строки результата */
-
-	if (rank == 0)
-
-	{
-		for (i = 0; i < 1; i++)
-
-			for (j = 0; j < 4; j++)
-
-				printf("C[i][j] = %f\n", C[i][j]);
-
-	}
-
-	/* Все ветви завершают системные процессы, связанные с топологией comm_cart
-
-	 * и завершаю выполнение программы */
-
-	MPI_Comm_free(&comm_cart);
-
-	MPI_Finalize();
-
-	return(0);
-
+#include "mpi.h"
+#include <stdio.h>
+#include <iostream>
+#include <math.h>
+#include <ctime>
+#include <cmath>
+#include <vector>
+#include <string>
+using namespace std;
+ 
+void sendr(int ProcSize, int neproc, int result, int Side) {
+    int buffer[10]{ 1 }, buffer2[10]{ 1 }, rank,size,f;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Status status;
+    int i = 0;
+ 
+    if (Side == 0) {
+ 
+        for (int i = 0; i < 1; i++) {
+            if (rank == 4)
+                MPI_Sendrecv(&buffer[0], 2, MPI_INT, size, i, &buffer2[0], 2, MPI_INT, 0, i, MPI_COMM_WORLD, &status);
+            cout << 0 << "at"; fflush(stdout);;
+            cout << size << "to"; fflush(stdout);;
+        }
+ 
+        for (int j = size; j > neproc; j--) {
+            i = j;
+            if ((rank == j) || (rank == i))
+                MPI_Sendrecv(&buffer[0], 2, MPI_INT, j, j, &buffer2[0], 2, MPI_INT, i, j, MPI_COMM_WORLD, &status);
+                cout << i << "at"; fflush(stdout);;
+                cout << j << "to"; fflush(stdout);;
+        }
+    }
+ 
+ 
+    if (Side == 1) {
+        for (int j = 0; j < neproc; j++) {
+            i = j;
+            if ((rank == j) || (rank == i))
+                MPI_Sendrecv(&buffer[0], 2, MPI_INT, j, j, &buffer2[0], 2, MPI_INT, i, j, MPI_COMM_WORLD, &status);
+                cout << i << "at"; fflush(stdout);;
+                cout << j << "to"; fflush(stdout);;
+        }
+    }
+}
+ 
+ 
+bool IsRingTopology(MPI_Comm comm) {
+    int status;
+    MPI_Topo_test(comm, &status);
+    if (status != MPI_CART)
+        return false;
+ 
+    int ndims;
+    MPI_Cartdim_get(comm, &ndims);
+    if (ndims != 1)
+        return false;
+ 
+    std::vector<int> dims(ndims), periods(ndims), coords(ndims);
+    MPI_Cart_get(comm, ndims, dims.data(), periods.data(), coords.data());
+    if (periods[0] != 1)
+        return false;
+ 
+    return true;
+}
+ 
+int main(int argc, char* argv[]) {
+    double TimeStartWork, TimeEndWork, TimeStartWork2, TimeEndWork2;
+    int neproc = 0, rigth = 0, left = 0, result = 0;
+    int Side;
+    MPI_Comm oldcomm = MPI_COMM_WORLD;
+    MPI_Comm ringcomm;
+    int oldSize, rankProc;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rankProc);
+    MPI_Comm_size(MPI_COMM_WORLD, &oldSize);
+    std::vector<int> dims(1), periods(1);
+    neproc = atoi(argv[1]);
+    MPI_Comm_size(oldcomm, &dims[0]);
+    periods[0] = 1;
+    TimeStartWork = MPI_Wtime();
+    MPI_Cart_create(oldcomm, 1, dims.data(), periods.data(), 0, &ringcomm);
+ 
+    bool IsW = IsRingTopology(ringcomm);
+    TimeEndWork = MPI_Wtime();
+    TimeStartWork2 = MPI_Wtime();
+    if (rankProc == 0) {
+        for (int j = 0; j < neproc; j++)
+            rigth++;
+        for (int i = oldSize; i > neproc; i--)
+            left++;
+        if (rigth > left) {
+            Side = 0;
+            result = left;
+        }
+        else if (rigth < left) {
+            Side = 1;
+            result = rigth;
+        }
+        else {
+            Side = 1;
+            result = left;
+        }
+        cout << "\n" << left << ":left \n"; fflush(stdout);;
+        cout << "\n" << rigth << ":rigth \n"; fflush(stdout);;
+    }
+    sendr(oldSize, neproc, result, Side);
+    if (rankProc == 0) {
+        TimeEndWork2 = MPI_Wtime();
+        cout << "\nTime In Main = " << TimeEndWork2 - TimeStartWork2 << " sec" << endl;
+        cout << "\nTime In Standart With Test = " << TimeEndWork - TimeStartWork << " sec" << endl;
+    }
+    MPI_Finalize();
+    return 0;
 }
