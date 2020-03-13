@@ -1,155 +1,120 @@
-#include "mpi.h"
-#include <vector>
-#include <string>
-#include <random>
-#include <stdlib.h>
-#include <ctime>
-#include <algorithm>
 #include <stdio.h>
 #include <iostream>
-#include <math.h>
-#include <ctime>
-#include <cmath>
-#include <string>
-#include <Windows.h>
-
+#include "mpi.h"
 using namespace std;
 
-int getPositive_elem(std::vector<int> vector, int count_size_vector) {
-	if (count_size_vector < 2) {
+int main(int argc, char* argv[])
+{
+	int Rank, ProcN, SizeM, Operations, Index_Counter = 10; //Rank - текущий проц., ProcN - количество процессов, SizeM - размер массива, Operations - количество связок отправитель-получатель, Index_Counter - количество элементов массива на 1 проц.
+	double WTimeStart, WTimeEnd;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_size(MPI_COMM_WORLD, &ProcN);
+	MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
+	if (ProcN % 2 == 0 && ProcN != 2)
+	{
+		Operations = (ProcN / 2);
+		SizeM = Operations * 10;
+		int* Massive = new int[SizeM]; // по 10 элементов на каждую отправку
+		if (Rank == 0)
+		{
+			cout << "\n\t\tManufacturers and consumers.\n\t\tGaluzina A. 381708-2.\n\n\tOperations send-receive: " << Operations << "\n\tSize of massive: " << SizeM;
+			for (int i = 0; i < SizeM; i++)
+			{
+				Massive[i] = i + 1;
+			}
+			cout << "\n\nSource massive: ";
+			for (int i = 0; i < SizeM; i++)
+			{
+				cout << Massive[i] << "|";
+			}
+			for (int i = 1; i <= Operations - 1; i++) // Рассылка от рут-процесса всем процессам-отправителям, чтобы в дальнейшем процессы-отправители отправили данные процессам-получателям, -1, т.к. рут-процесс изначально тоже является процессом-отправителем и в нём уже есть данные, ему отправлять не нужно
+			{
+				MPI_Send(&Massive[Index_Counter], 10, MPI_INT, i, 500, MPI_COMM_WORLD);
+				Index_Counter += 10;
+			}
+		}
+		if (Operations == 2)
+		{
+			if (Rank == 1) // получение данных процессами-отправителями (кроме рута, в нём изначально есть данные, он тоже процесс-отправитель)
+			{
+				MPI_Recv(&Massive[0], 10, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+			if (Rank == 0 || Rank == 1)
+			{
+				MPI_Send(&Massive[0], 10, MPI_INT, Rank + 2, 500, MPI_COMM_WORLD);
+			}
+		}
+		if (Operations == 3)
+		{
+			if (Rank == 1 || Rank == 2)
+			{
+				MPI_Recv(&Massive[0], 10, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+			if (Rank == 0 || Rank == 1 || Rank == 2)
+			{
+				MPI_Send(&Massive[0], 10, MPI_INT, Rank + 3, 500, MPI_COMM_WORLD);
+			}
+		}
+		if (Operations == 4)
+		{
+			if (Rank == 1 || Rank == 2 || Rank == 3)
+			{
+				MPI_Recv(&Massive[0], 10, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+			if (Rank == 0 || Rank == 1 || Rank == 2 || Rank == 3)
+			{
+				MPI_Send(&Massive[0], 10, MPI_INT, Rank + 4, 500, MPI_COMM_WORLD);
+			}
+		}
+		// Рассылка от процессов-отправителей к процессам-получателям
+
+
+
+		if (Operations == 2)
+		{
+			if (Rank == 2 || Rank == 3) // получение данных процессами-получателями
+			{
+				MPI_Recv(&Massive[0], 10, MPI_INT, Rank - 2, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+		}
+		if (Operations == 3)
+		{
+			if (Rank == 3 || Rank == 4 || Rank == 5)
+			{
+				MPI_Recv(&Massive[0], 10, MPI_INT, Rank - 3, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+
+		}
+		if (Operations == 4)
+		{
+			if (Rank == 4 || Rank == 5 || Rank == 6 || Rank == 7)
+			{
+				MPI_Recv(&Massive[0], 10, MPI_INT, Rank - 4, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+		}
+
+		WTimeStart = MPI_Wtime();
+
+		cout << "\nMessage from procces #" << Rank << ":";
+		cout << '|';
+		for (int i = 0; i < 10; i++)
+		{
+			cout << Massive[i] << '|';
+		}
+
+
+		if (Rank == 0)
+		{
+			WTimeEnd = MPI_Wtime();
+			cout << "\n\nComputation time = " << WTimeEnd - WTimeStart << " seconds\n\n";
+		}
+		MPI_Finalize();
 		return 0;
 	}
-	int negative_elem = 0;
-	for (int c = 0; c < count_size_vector; c++) {
-		if (vector[c] == -1) {
-			negative_elem++;
-		}
+	else
+	{
+		cout << "Total process must be 4, 6, or 8!";
+		MPI_Finalize();
+		return 0;
 	}
-	return vector.size() - negative_elem;
-}
-int* Create_dinamic_massiv_from_vector(std::vector<int> vec) {//принимает вектор, возвращает массив
-	int vec_size = vec.size(); //записыавем размер вектора
-	int* mas = new int[vec_size];//создаем массив размера это вектора
-	for (int i = 0; i < vec_size; i++) {
-		mas[i] = vec[i];
-	}
-	return mas;
-}
-
-int Consumer(int *buffer, int buffer_size, int rank_proc, int* resurce) {
-	int size, rank;
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	if (size == 1 || rank_proc == 0) { // если 0 процес выполнет функцию или кол-во проц = 1
-		for (int i = 0; i < buffer_size; i++) {
-			if (buffer[i] != -1) {
-				*resurce = buffer[i];
-				buffer[i] = -1;
-				break;
-			}
-		}
-	}
-	else {
-		if (rank == 0) {
-			int temp_resurs;
-			for (int i = 0; i < buffer_size; i++) {
-				if (buffer[i] != -1) {
-					temp_resurs = buffer[i];
-					buffer[i] = -1;
-					break;
-				}
-			}
-			MPI_Send(&temp_resurs, 1, MPI_INT, rank_proc, 0, MPI_COMM_WORLD); //отправляет ресурс процессору который его вызвал
-		}
-		else {
-			if (rank == rank_proc) {
-				int temp_resurs;
-				MPI_Recv(&temp_resurs, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);//принимает данные от производителя на 0
-				*resurce = temp_resurs; // отправленный ресурс делает принятым 
-			}
-		}
-	}
-	MPI_Barrier(MPI_COMM_WORLD);
-	return 0;
-}
-int Producer(int *buffer, int buffer_size, int rank_proc, int resurce) {
-	int size, rank;
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	if (size == 1 || rank_proc == 0) {
-		for (int i = 0; i < buffer_size; i++) {
-			if (buffer[i] == -1) {
-				buffer[i] = resurce; //заполнение буфера ресурсом
-				break;
-			}
-		}
-	}
-	else {
-		if (rank == 0) { //если функцию вызвал 0 процессор, то принимает
-			int resurce_for_bufer;
-			MPI_Recv(&resurce_for_bufer, 1, MPI_INT, rank_proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE); //прием сообщения процессора вызывающего функцию производителей
-			for (int i = 0; i < buffer_size; i++) { //по кол-ву эл буфера заполнение буфера ресурсом
-				if (buffer[i] == -1) {
-					buffer[i] = resurce;
-					break;
-				}
-			}
-		}
-		else { //если любой другой, то отправка нулевому 
-			if (rank == rank_proc) {
-				MPI_Send(&resurce, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-			}
-		}
-	}
-	MPI_Barrier(MPI_COMM_WORLD); //Блокирует звонящего до тех пор, пока все члены группы не вызовут его; вызов возвращается в любом процессе только после того, как все члены группы вошли в вызов.
-	return 0;
-}
-int main(int argc, char** argv)
-{
-	setlocale(LC_ALL, "Russian");
-	int rank, size;
-	double st1, st2, et1, et2;  //time
-	MPI_Init(&argc, &argv); //принимает данные с консоли иницализирует работы 
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank); // возвращает ранг процессоров 
-	MPI_Comm_size(MPI_COMM_WORLD, &size); //количество
-	int kol_elem_in_buffer = 100;
-	int *buffer = new int[kol_elem_in_buffer];
-	for (int i = 0; i < kol_elem_in_buffer; i++) {
-		buffer[i] = -1;
-	}
-	int kol_resursov = atoi(argv[1]); //задаем кол-во ресурсов с консоли
-	if (size == 1) {
-		st2 = MPI_Wtime();
-		for (int i = 0; i < kol_resursov; i++) {
-			Producer(buffer, kol_elem_in_buffer, rank, i);
-		}
-		std::vector<int> resurce_consume1(kol_resursov, -1); //заполнение -1
-		int *resurce_consume;
-		resurce_consume = Create_dinamic_massiv_from_vector(resurce_consume1); //вернула массив
-		for (int i = 0; i < kol_resursov; i++) {
-			Consumer(buffer, kol_elem_in_buffer, rank, &resurce_consume[i]); //отправляю данные в массиве 
-			et2 = MPI_Wtime();
-			cout << resurce_consume[i] << "\n" << "Time_Single" << st2-et2 << std::fixed << " sec \n";;
-		}
-	}
-	else { // многопроцесорная 
-		st1 = MPI_Wtime();
-		for (int i = 0; i < kol_resursov; i++) {
-			Producer(buffer, kol_elem_in_buffer, 1, i); //отправляем по кол-ву ресурсов отправляем кол-во эл в буфере 
-		}
-		std::vector<int> resurce_consume1(kol_resursov, -1);
-		int *resurce_consume;
-		resurce_consume = Create_dinamic_massiv_from_vector(resurce_consume1);
-		for (int i = 0; i < kol_resursov; i++) {
-			Consumer(buffer, kol_elem_in_buffer, 1, &resurce_consume[i]); //отправляю -1 (массив)
-		}
-		if (rank == 1) { //выписваю ресурсы если ранг 1
-			for (int i = 0; i < kol_resursov; i++) {
-				et1 = MPI_Wtime();
-				cout << resurce_consume[i] << "\n" << "Time_Multyply" << st1 - et1 << std::fixed << " sec \n";;
-			}
-		}
-	}
-	MPI_Finalize();
-	return 0;
 }
