@@ -5,7 +5,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include "../../../modules/task_3/palguev_i_strongin/implementation.h"
+#include "./implementation.h"
 
 bool AreVectorsEquals(std::vector<double> vec1, std::vector<double> vec2)
 {
