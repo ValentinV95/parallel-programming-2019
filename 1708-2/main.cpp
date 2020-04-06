@@ -2,86 +2,100 @@
 #include <gtest-mpi-listener.hpp>
 #include <gtest/gtest.h>
 #include <mpi.h>
+#include <cmath>
+#include <functional>
+#include <utility>
 #include <vector>
-#include "./matrix_vector_mult_hor.h"
+#include "./monte_carlo_mult_integr.h"
 
-TEST(Matrix_Vector_Mult, Test_Seq_Mult) {
+#define abs_error 0.75
+const double PI = acos(-1);
+
+
+double f1(std::vector<double> v) {
+    double res = 1;
+    for (int i = 0; i < v.size(); ++i)
+        res *= v[i];
+    return res;
+}
+
+double f2(std::vector<double> v) {
+    double res = 0;
+    for (int i = 0; i < v.size(); ++i)
+        res += v[i];
+    return sin(res);
+}
+
+double f3(std::vector<double> v) {
+    double res = 0;
+    for (int i = 0; i < v.size(); i++)
+        res += v[i]*v[i];
+    return res;
+}
+
+TEST(monteCarloMultipleIntegraion, Sequentional_On_One_Dimensional) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int width = 3, height = 3;
-    std::vector<int> mat = {1, 2, 3, 4, 5, 6, 7, 8, 9};
-    std::vector<int> vec = {1, 2, 3};
     if (rank == 0) {
-        std::vector<int> ans = matrix_vector_mult_sequential(mat, vec, width, height);
-        std::vector<int> ans_expect = {14, 32, 50};
-        EXPECT_EQ(ans, ans_expect);
+        std::vector<std::pair<double, double>> lims = {{0, 5}};
+        double ans = monteCarloIntegraionSequentional(lims, 10000, f2);
+        EXPECT_NEAR(ans, 0.716338, abs_error);
     }
 }
 
-TEST(Matrix_Vector_Mult, Test_Paral_Mult_On_Small_Size) {
+TEST(monteCarloMultipleIntegraion, Sequentional_On_Two_Dimensional) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int width = 5, height = 3;
-    std::vector<int> mat = generate_vector(width*height);
-    std::vector<int> vec = generate_vector(width);
-    std::vector<int> ans = matrix_vector_mult_parallel(mat, vec, width, height);
     if (rank == 0) {
-        std::vector<int> ans_seq = matrix_vector_mult_sequential(mat, vec, width, height);
-        EXPECT_EQ(ans, ans_seq);
+        std::vector<std::pair<double, double>> lims = {{0, 1}, {0, 1}};
+        double ans = monteCarloIntegraionSequentional(lims, 10000, f3);
+        EXPECT_NEAR(ans, 0.25, abs_error);
     }
 }
 
-TEST(Matrix_Vector_Mult, Test_Paral_Mult_On_Very_Small_Size) {
+TEST(monteCarloMultipleIntegraion, Sequentional_On_Three_Dimensional) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int width = 1, height = 1;
-    std::vector<int> mat = generate_vector(width*height);
-    std::vector<int> vec = generate_vector(width);
-    std::vector<int> ans = matrix_vector_mult_parallel(mat, vec, width, height);
     if (rank == 0) {
-        std::vector<int> ans_seq = matrix_vector_mult_sequential(mat, vec, width, height);
-        EXPECT_EQ(ans, ans_seq);
+        std::vector<std::pair<double, double>> lims = {{0, 1}, {0, 1}, {0, 1}};
+        double ans = monteCarloIntegraionSequentional(lims, 10000, f3);
+        EXPECT_NEAR(ans, 1, abs_error);
     }
 }
 
-TEST(Matrix_Vector_Mult, Test_Paral_Mult_On_Big_Size) {
+TEST(monteCarloMultipleIntegraion, Parallel_On_One_Dimensional) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int width = 1000, height = 1000;
-    std::vector<int> mat = generate_vector(width*height);
-    std::vector<int> vec = generate_vector(width);
-    std::vector<int> ans = matrix_vector_mult_parallel(mat, vec, width, height);
+    std::vector<std::pair<double, double>> lims = generate_limits(1, 0, 1);
+    double ans = monteCarloIntegraionParallel(lims, 10000, f1);
     if (rank == 0) {
-        std::vector<int> ans_seq = matrix_vector_mult_sequential(mat, vec, width, height);
-        EXPECT_EQ(ans, ans_seq);
+        double ans_check = monteCarloIntegraionSequentional(lims, 10000, f1);
+        EXPECT_NEAR(ans, ans_check, abs_error);
     }
 }
 
-TEST(Matrix_Vector_Mult, Test_Paral_Mult_Small_Height) {
+TEST(monteCarloMultipleIntegraion, Parallel_On_Two_Dimensional) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int width = 500, height = 1;
-    std::vector<int> mat = generate_vector(width*height);
-    std::vector<int> vec = generate_vector(width);
-    std::vector<int> ans = matrix_vector_mult_parallel(mat, vec, width, height);
+    std::vector<std::pair<double, double>> lims = generate_limits(2, 0, 1);
+    double ans = monteCarloIntegraionParallel(lims, 10000, f2);
     if (rank == 0) {
-        std::vector<int> ans_seq = matrix_vector_mult_sequential(mat, vec, width, height);
-        EXPECT_EQ(ans, ans_seq);
+        double ans_check = monteCarloIntegraionSequentional(lims, 10000, f2);
+        EXPECT_NEAR(ans, ans_check, abs_error);
     }
 }
 
-TEST(Matrix_Vector_Mult, Test_Paral_Mult_Small_Width) {
+TEST(monteCarloMultipleIntegraion, Parallel_On_Three_Dimensional) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int width = 1, height = 500;
-    std::vector<int> mat = generate_vector(width*height);
-    std::vector<int> vec = generate_vector(width);
-    std::vector<int> ans = matrix_vector_mult_parallel(mat, vec, width, height);
+    std::vector<std::pair<double, double>> lims = generate_limits(3, 0, 1);
+    double ans = monteCarloIntegraionParallel(lims, 10000, f3);
     if (rank == 0) {
-        std::vector<int> ans_seq = matrix_vector_mult_sequential(mat, vec, width, height);
-        EXPECT_EQ(ans, ans_seq);
+        double ans_check = monteCarloIntegraionSequentional(lims, 10000, f3);
+        EXPECT_NEAR(ans, ans_check, abs_error);
     }
 }
+
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
