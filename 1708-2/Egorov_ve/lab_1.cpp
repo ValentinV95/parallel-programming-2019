@@ -6,20 +6,32 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-	int Row_Size = atoi(argv[1]), Column_Size = atoi(argv[2]), Part_Size = 0, Last_Part = 0, Current_Rank, Proc_N, Summ_Value = 0; #кол строк, столбцов
+	int Row_Size = atoi(argv[1]), Column_Size = atoi(argv[2]), Part_Size = 0, Last_Part = 0, Current_Rank, Proc_N, Summ_Value = 0, Counter = 0;;
 	double WTime_Start = 0, WTime_End = 0, Single_Time = 0, Parallel_Time = 0;	
-	int** Matrice = new int* [Row_Size];				// create dynamic matrice
-	int* Result_Sum = new int [Column_Size];			// result summ massive of columns matrice
-	int* Matrice_1_M = new int[Column_Size*Row_Size];	// matrice in one massive for normal sending
 	
-	for (int i = 0; i < Row_Size; ++i)
-	{
-		Matrice[i] = new int[Column_Size];
-	}		
 	srand(time(NULL));								
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &Current_Rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &Proc_N);
+	if (Row_Size == 0 || Column_Size == 0)
+	{
+		if (Current_Rank == 0)
+		{
+			cout << "INCORRECT INPUT" << endl;
+			MPI_Finalize();
+			return 0;
+		}
+	}
+
+	int** Matrice = new int* [Row_Size];				// create dynamic matrice
+	int* Result_Sum = new int[Column_Size];			// result summ massive of columns matrice
+	int* Matrice_1_M = new int[Column_Size * Row_Size];	// matrice in one massive for normal sending
+
+	for (int i = 0; i < Row_Size; ++i)
+	{
+		Matrice[i] = new int[Column_Size];
+	}
+
 	if (Column_Size < Proc_N)
 	{
 		Part_Size = 1;
@@ -90,23 +102,12 @@ int main(int argc, char** argv)
 	
 	MPI_Scatter(Matrice_1_M, Part_Size * Row_Size,  MPI_INT, Matrice_2_M, Part_Size * Row_Size, MPI_INT, 0, MPI_COMM_WORLD);
 
-	cout << "\n\nFrom " << Current_Rank << " process:\n";
-	for (int i = 0; i < Part_Size * Row_Size; i++)
+	if (Current_Rank < Column_Size)
 	{
-		Summ_Value += Matrice_2_M[i];
-		cout << Matrice_2_M[i] << "|";
-	}
-	cout << "\nSumm = " << Summ_Value << "\n\n";
-	
-
-	MPI_Barrier(MPI_COMM_WORLD);
-	if (Current_Rank == 0)
-	{
-		WTime_End = MPI_Wtime();
-		cout << "\n\nAdditional pack from process " << Current_Rank << " process:\n";
-		int Counter = 0;
+		cout << "\n\nFrom " << Current_Rank << " process:\n";
+		Counter = 0;
 		Summ_Value = 0;
-		for (int i = (Column_Size * Row_Size) - (Last_Part * Row_Size); i < Column_Size * Row_Size; i++)
+		for (int i = 0; i < Part_Size * Row_Size; i++)
 		{
 			Counter++;
 			if (Counter > Row_Size)
@@ -115,11 +116,34 @@ int main(int argc, char** argv)
 				Summ_Value = 0;
 				Counter = 0;
 			}
-			Summ_Value += Matrice_1_M[i];
-			cout << Matrice_1_M[i] << "|";
+			Summ_Value += Matrice_2_M[i];
+			cout << Matrice_2_M[i] << "|";
 		}
 		cout << "\nSumm = " << Summ_Value << "\n\n";
-
+	}
+	
+	if (Current_Rank == 0)
+	{
+		WTime_End = MPI_Wtime();
+		if (Last_Part != 0)
+		{
+			cout << "\n\nAdditional pack from process " << Current_Rank << " process:\n";
+			int Counter = 0;
+			Summ_Value = 0;
+			for (int i = (Column_Size * Row_Size) - (Last_Part * Row_Size); i < Column_Size * Row_Size; i++)
+			{
+				Counter++;
+				if (Counter > Row_Size)
+				{
+					cout << "\nSumm = " << Summ_Value << "\n\n";
+					Summ_Value = 0;
+					Counter = 0;
+				}
+				Summ_Value += Matrice_1_M[i];
+				cout << Matrice_1_M[i] << "|";
+			}
+			cout << "\nSumm = " << Summ_Value << "\n\n";
+		}	
 		Parallel_Time = WTime_End - WTime_Start;
 		cout << "\n\nTime in single: " << Single_Time << " seconds\nTime in parallel: " << Parallel_Time << " seconds\n\n";
 	}
