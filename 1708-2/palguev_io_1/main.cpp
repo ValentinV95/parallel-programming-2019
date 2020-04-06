@@ -1,10 +1,6 @@
-// Copyright 2019 Sadikov Artem
 #include <gtest-mpi-listener.hpp>
 #include <gtest/gtest.h>
-#include <vector>
-#include <string>
 #include "./two_string.h"
-#include <iostream>
 
 TEST(Two_String_MPI, Test_On_Min_String) {
     int rank;

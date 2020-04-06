@@ -1,7 +1,6 @@
-// Copyright 2019 Palguev Igor
 #include <mpi.h>
 #include <iostream>
-#include "../../../modules/task_1/palguev_i_two_string/two_string.h"
+#include "./two_string.h"
 
 int diff_count_parallel(const char* str_1,
                         const char* str_2) {
