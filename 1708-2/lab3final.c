@@ -1,4 +1,6 @@
 /* mpirun -np 8 lab3final.c */
+/* Enter the exact input then the mode and and rectangele */
+/*ref 2009 book introduction to mpi by jun NI (hpc summer school) */
 /* 0 1 512 1 */
 
 #include <stdio.h>
