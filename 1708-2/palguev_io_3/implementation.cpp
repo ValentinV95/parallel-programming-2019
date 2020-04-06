@@ -1,5 +1,3 @@
-// Copyright 2019 Palguev Igor
-
 #ifndef IMPLEMENTATION_CPP
 #define IMPLEMENTATION_CPP
 

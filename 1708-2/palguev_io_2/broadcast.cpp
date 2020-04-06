@@ -1,5 +1,4 @@
-// Copyright 2019 Palguev Igor
-#include "../../../modules/task_2/palguev_i_broadcast/broadcast.h"
+#include "./broadcast.h"
 
 void broadcast(void *buffer, int count, MPI_Datatype datatype, int root,
                  MPI_Comm comm) {

@@ -1,7 +1,4 @@
-// Copyright 2019 Palguev Igor
-
-#ifndef MODULES_TASK_3_PALGUEV_I_STRONGIN_IMPLEMENTATION_H_
-#define MODULES_TASK_3_PALGUEV_I_STRONGIN_IMPLEMENTATION_H_
+#pragma once
 #include <vector>
 
 double get_max(double input, std::vector<double> intervals,

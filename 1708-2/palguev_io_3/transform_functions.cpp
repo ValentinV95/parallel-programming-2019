@@ -1,6 +1,5 @@
-// Copyright 2019 Palguev Igor
 #include <cmath>
-#include "../../../modules/task_3/palguev_i_strongin/transform_functions.h"
+#include "./transform_functions.h"
 
 double TransformFunction1(double input)
 {

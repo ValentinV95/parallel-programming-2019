@@ -13,7 +13,7 @@ int diff_count_parallel(const char* str_1,
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (size > (int)strlen(str_1)) {
-        return get_diff_sequential(str_1, str_2, 0, strlen(str_1));
+        return diff_count_sequential(str_1, str_2, 0, strlen(str_1));
     }
 
     int delta = strlen(str_1) / size;
@@ -23,13 +23,12 @@ int diff_count_parallel(const char* str_1,
         end += strlen(str_1) % size;
 
     int res = 0;
-    int local_res = get_diff_sequential(str_1, str_2, start, end);
-    MPI_Barrier(MPI_COMM_WORLD);
+    int local_res = diff_count_sequential(str_1, str_2, start, end);
     MPI_Reduce(&local_res, &res, 1, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
     return res;
 }
 
-int get_diff_sequential(const char* str_1, const char* str_2, int start, int end) {
+int diff_count_sequential(const char* str_1, const char* str_2, int start, int end) {
     int res = 0;
 
     for (int i = start; i < end; i++) {

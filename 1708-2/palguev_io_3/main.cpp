@@ -1,4 +1,3 @@
-// Copyright 2019 Palguev Igor
 #include <gtest/gtest.h>
 #include <gtest-mpi-listener.hpp>
 #include <vector>
