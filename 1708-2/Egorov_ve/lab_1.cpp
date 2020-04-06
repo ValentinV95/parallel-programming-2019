@@ -6,7 +6,7 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-	int Row_Size = atoi(argv[1]), Column_Size = atoi(argv[2]), Part_Size = 0, Last_Part = 0, Current_Rank, Proc_N, Summ_Value = 0;
+	int Row_Size = atoi(argv[1]), Column_Size = atoi(argv[2]), Part_Size = 0, Last_Part = 0, Current_Rank, Proc_N, Summ_Value = 0; #кол строк, столбцов
 	double WTime_Start = 0, WTime_End = 0, Single_Time = 0, Parallel_Time = 0;	
 	int** Matrice = new int* [Row_Size];				// create dynamic matrice
 	int* Result_Sum = new int [Column_Size];			// result summ massive of columns matrice
@@ -105,6 +105,7 @@ int main(int argc, char** argv)
 		WTime_End = MPI_Wtime();
 		cout << "\n\nAdditional pack from process " << Current_Rank << " process:\n";
 		int Counter = 0;
+		Summ_Value = 0;
 		for (int i = (Column_Size * Row_Size) - (Last_Part * Row_Size); i < Column_Size * Row_Size; i++)
 		{
 			Counter++;
