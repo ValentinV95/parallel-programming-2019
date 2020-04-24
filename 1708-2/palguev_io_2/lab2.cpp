@@ -1,7 +1,6 @@
 #include <mpi.h>
 #include <iostream>
 #include <string>
-#include <string.h>
 
 void brcast(void *value, int len, MPI_Datatype dp, int root,
                  MPI_Comm cm, int rank, int size);
