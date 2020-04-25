@@ -1,98 +1,121 @@
 #include "pch.h"
-#include "mpi.h"
 #include <stdio.h>
 #include <iostream>
-#include <math.h>
-#include <ctime>
-#include <cmath>
-#include <string>
-#include <bitset>
+#include "mpi.h"
+
 using namespace std;
- 
-void sendr(int oldSize, int rankProc, int neproc, int startproc) {
-int numprocs, left = startproc, right=0;
-int buffer[10], buffer2[10];
-MPI_Status status;
-while (left != neproc) {
-if (neproc <= left) {
-cout << "\n--" << endl;
-right = --left;
-            }
-else if (neproc >= left) {
-cout << "\n++" << endl;
-right = ++left;
-            }
-cout << "\n left:" << left << "\n righ:" << right << endl;
-if (rankProc == right) {
-MPI_Sendrecv(buffer, 1, MPI_INT, right, 123, buffer2, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &status);
-            }
-left = right;
-cout << "\n" << left <<" neproc"<< neproc << endl;
-        }
-    }
- 
-bool testLinearTopology(MPI_Comm commLinear, int new_coords[]) {
-int rank, size;
-int sourceLess, sourceBig, destLess, destBig;
-int val, valFromLess, valFromBig;
-MPI_Status status;
-MPI_Comm_rank(commLinear, &rank);
-MPI_Comm_size(commLinear, &size);
-MPI_Cart_coords(commLinear, rank, 1, new_coords);
-val = new_coords[0];
-valFromLess = -1;
-valFromBig = -1;
-MPI_Cart_shift(commLinear, 0, 1, &sourceLess, &destBig);
-MPI_Cart_shift(commLinear, 0, -1, &sourceBig, &destLess);
-MPI_Sendrecv(&val, 1, MPI_INT, destBig, 4, &valFromLess, 1, MPI_INT,
-sourceLess, 4, commLinear, &status);
-MPI_Sendrecv(&val, 1, MPI_INT, destLess, 4, &valFromBig, 1, MPI_INT,
-sourceBig, 4, commLinear, &status);
-MPI_Comm_free(&commLinear);
- 
-if ((rank + 1) != valFromBig) {
-if (new_coords[0] != size - 1) return false;
-    }
-if ((rank - 1) != valFromLess) {
-if (new_coords[0] != 0) return false;
-    }
-return true;
+
+bool check_point = false;
+
+void counter(int Operations, int proc_N, int send, int receiv, int* arr_proc)
+{
+	int s = 0;
+	if (check_point)
+	{
+		for (int i = send; i <= receiv; i++)
+		{
+			arr_proc[s] = i;
+			s++;
+		}
+	}
+	else
+	{
+		for (int i = send; i >= receiv; i--)
+		{
+			arr_proc[s] = i;
+			s++;
+		}
+	}
 }
- 
-int main(int argc, char** argv) {
-double TimeStartWork, TimeEndWork, TimeStartWork2, TimeEndWork2;
-int size = 5;
-int neproc = 0, startproc = 0;
-int new_coords[1];
-int reorder = 0;
-int dims[1]{ 0 }, periods[1]{ 0 };
-int oldSize, rankProc;
-MPI_Init(&argc, &argv);
-MPI_Comm_rank(MPI_COMM_WORLD, &rankProc);
-MPI_Comm_size(MPI_COMM_WORLD, &oldSize);
-size = atoi(argv[1]);
-neproc = atoi(argv[2]);
-startproc = atoi(argv[3]);
-new_coords[atoi(argv[2])];
-if (size <= 0 || size > oldSize)
-MPI_Dims_create(oldSize, 1, dims);
-else
-MPI_Dims_create(size, 1, dims);
-MPI_Comm commLinear;
-MPI_Cart_create(MPI_COMM_WORLD, 1, dims, periods, reorder, &commLinear);
-bool test = testLinearTopology(commLinear, new_coords);
-if (rankProc == 0) {
-TimeStartWork = MPI_Wtime();
-cout << test; fflush(stdout);;
-TimeEndWork = MPI_Wtime();
-cout << "\nTime In Standart = " << TimeEndWork - TimeStartWork << " sec" << endl;
-    }
-TimeStartWork2 = MPI_Wtime();
-sendr(oldSize, rankProc, neproc, startproc);
-if (rankProc == 0) {
-TimeEndWork2 = MPI_Wtime();
-cout << "\nTime In Main = " << TimeEndWork2 - TimeStartWork2 << " sec" << endl;
-    }
-MPI_Finalize();
-return 0;
+
+int main(int argc, char* argv[])
+{
+	int send = atoi(argv[1]), proc_N, receiv = atoi(argv[2]), current_rank, op_val = 0;
+	double time_start, time_end;
+	int message = 0;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_size(MPI_COMM_WORLD, &proc_N);
+	MPI_Comm_rank(MPI_COMM_WORLD, &current_rank);
+	if (send == proc_N)
+	{
+		if (current_rank == 0)
+		{
+			cout << "send-processor_dont_be_a_receiv_processor_in_same_time!" << endl;
+		}
+		MPI_Finalize();
+		return 0;
+	}
+	if (send > proc_N)
+	{
+		if (current_rank == 0)
+		{
+			cout << "send-processor_must_be_less_than_total_processors!" << endl;
+		}
+		MPI_Finalize();
+		return 0;
+	}
+	if (receiv > proc_N)
+	{
+		if (current_rank == 0)
+		{
+			cout << "receiv-processor_must_be_less_than_total_processors!" << endl;
+		}
+		MPI_Finalize();
+		return 0;
+	}
+	if (send == receiv)
+	{
+		if (current_rank == 0)
+		{
+			cout << "send-processor_equal_receiv-processor!" << endl;
+		}
+		MPI_Finalize();
+		return 0;
+	}
+	else
+	{
+		if (current_rank == send)
+		{
+			cout << "\ntotal_proccesors: " << proc_N << "\nsend-processor: " << send << "\nreceiv-processor: " << receiv << "\n\n";
+		}
+		if (send < receiv)
+		{
+			check_point = true;
+			op_val = receiv - send + 1;
+		}
+		else
+		{
+			check_point = false;
+			op_val = send - receiv + 1;
+		}
+		int* arr_proc = new int[op_val];
+		counter(op_val, proc_N, send, receiv, arr_proc);
+
+		for (int i = 0; i < op_val; i++)
+		{
+			if (arr_proc[i] == current_rank && current_rank == send)
+			{
+				message = 200;
+				MPI_Send(&message, 1, MPI_INT, arr_proc[i + 1], 500, MPI_COMM_WORLD);
+				cout << "\n\nprocess: " << current_rank << "\nsending_to: " << arr_proc[i + 1];
+				break;
+			}
+			if (arr_proc[i] == current_rank && current_rank == receiv)
+			{
+				MPI_Recv(&message, 1, MPI_INT, arr_proc[i - 1], MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				cout << "\n\nprocess: " << current_rank << "\nreceiving_from: " << arr_proc[op_val - 2] << "\nmessage: " << message;
+				break;
+			}
+			if (arr_proc[i] == current_rank && current_rank != send && current_rank != receiv)
+			{
+				MPI_Recv(&message, 1, MPI_INT, arr_proc[i - 1], MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Send(&message, 1, MPI_INT, arr_proc[i + 1], 500, MPI_COMM_WORLD);
+				cout << "\n\nprocess: " << current_rank << "\nreceiving_from: " << arr_proc[i - 1] << "\nsending_to: " << arr_proc[i + 1];
+				break;
+			}
+		}
+		MPI_Finalize();
+		return 0;
+	}
+
 }
