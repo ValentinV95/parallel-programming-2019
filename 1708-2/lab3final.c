@@ -98,7 +98,7 @@ if (my_rank == 0)
 do
 {
 printf("Enter a, b, n(1024), and mode(1--rect):\n");
-scanf("%f %f %d %d", a_ptr, b_ptr, n_ptr, mode_ptr);
+scanf_s("%f %f %d %d", a_ptr, b_ptr, n_ptr, mode_ptr);
 }
  while (*mode_ptr<1 || *mode_ptr>3);
 for (dest = 1; dest < p; dest++)
