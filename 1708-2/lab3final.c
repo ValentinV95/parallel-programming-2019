@@ -143,23 +143,5 @@ local_integral += f(x);
 local_integral *=local_h;
 return local_integral;
 }
-float trap( float local_a, float local_b, int local_n)
-{
-float local_integral;
-float x;
-int i;
-float local_h;
-float f(float x);
-local_h=(local_b-local_a)/local_n;
-local_integral = f(local_a) + f(local_b);
-x = local_a;
-for (i = 1; i <= local_n-1; i++)
-{
-x = x + local_h;
-local_integral += 2.0*f(x);
-}
-local_integral *=local_h/2.0;
-return local_integral;
-}
 float f(float x)
 { return x*x; }
