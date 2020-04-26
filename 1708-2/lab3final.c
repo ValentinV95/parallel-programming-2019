@@ -161,26 +161,5 @@ local_integral += 2.0*f(x);
 local_integral *=local_h/2.0;
 return local_integral;
 }
-float simp( float local_a, float local_b, int local_n )
-{
-float local_integral;
-float x;
-int i;
-float local_h;
-float f(float x);
-local_h=(local_b-local_a)/local_n;
-local_integral = f(local_a) + f(local_b);
-x = local_a;
-for (i = 1; i < local_n; i++)
-{
-x = x + local_h;
-if (i % 2 == 0) /* if i is even */
-local_integral = local_integral + 2 * f(x);
-else /* if i is odd */
-local_integral = local_integral + 4 * f(x);
-}
-local_integral *=local_h/3.0;
-return local_integral;
-}
 float f(float x)
 { return x*x; }
