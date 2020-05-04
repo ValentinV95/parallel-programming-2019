@@ -40,29 +40,6 @@ void Full_Matrix_Random_Val(double** Matrix, int Size_M, int N_Zero_val) // full
 }
 
 
-
-int Multiply_Matrices_Cell(double** Matrix_A, double** Matrix_B, int Row, int Column, int Size_M)		// Add to Matrix C
-{
-	double Cell = 0;
-	for (int i = 0; i < Size_M; i++)
-	{
-		Cell += Matrix_A[Row][i] * Matrix_B[i][Column];
-	}
-	return Cell;
-}
-void Multiplication_Matrix(double** Matrix_A, double** Matrix_B, double** Matrix_C, int Size_M, int Current_Rank, int Part_Size)			// Calculating 1 cell
-{	
-	for (int Row = Current_Rank*Part_Size; Row < (Current_Rank * Part_Size)+Part_Size; Row++)
-	{
-		for (int Column = 0; Column < Size_M; Column++)
-		{
-			Matrix_C[Row][Column] = Multiply_Matrices_Cell(Matrix_A, Matrix_B, Row, Column, Size_M);
-		}
-	}
-}
-
-
-
 void Convert_To_Matrix(double* N_zero_val_matrix, int* Row_Index_matrix, int* Column_Index_matrix, double** Matrix, int N_Zero_val)
 {
 	for (int i = 0; i < N_Zero_val; i++)
@@ -91,7 +68,19 @@ void Convert_To_CCS(double** Matrix, double* N_zero_val_M, int* Row_Index, int* 
 	}
 }
 
-
+void CCS_Multipication_Matrix(double** Matrix, double* N_zero_val_A, int* Row_Index_A, int* Column_Index_A, double* N_zero_val_B, int* Row_Index_B, int* Column_Index_B, int N_Zero_Val_Count, int Current_Rank, int Part_Size)
+{
+	for (int Row_A = Current_Rank * Part_Size; Row_A < (Current_Rank * Part_Size) + Part_Size; Row_A++)
+	{
+		for (int Col_B = 0; Col_B < N_Zero_Val_Count; Col_B++)
+		{
+			if (Row_Index_B[Col_B]==Column_Index_A[Row_A])
+			{
+				Matrix[Row_Index_A[Row_A]][Column_Index_B[Col_B]] += N_zero_val_A[Row_A] * N_zero_val_B[Col_B];
+			}
+		}
+	}
+}
 
 int main(int argc, char** argv)
 {
@@ -127,15 +116,15 @@ int main(int argc, char** argv)
 		MPI_Finalize();
 		return 0;
 	}
-	if (Size_M % Proc_N != 0)
+	if (N_Zero_val % Proc_N != 0)
 	{
-		cout << "\n\nInvalid input!\nThe size of the matrix should be divided by the number of processes without a remainder!\n\n";		
+		cout << "\n\nInvalid input!\nAmount of non-zero values should be divided by the number of processes without a remainder!\n\n";		
 		MPI_Finalize();
 		return 0;
 	}
 
 
-	Part_Size = Size_M / Proc_N;
+	Part_Size = N_Zero_val / Proc_N;
 
 	if (Part_Size == 0)
 	{
@@ -143,9 +132,9 @@ int main(int argc, char** argv)
 	}
 	else if (Part_Size != 1)
 	{
-		if (Size_M % Proc_N != 0)
+		if (N_Zero_val % Proc_N != 0)
 		{
-			Last_Part = Size_M % Proc_N;
+			Last_Part = N_Zero_val % Proc_N;
 		}
 	}
 	
@@ -174,7 +163,7 @@ int main(int argc, char** argv)
 		Convert_To_CCS(Matrix_B, N_zero_val_B_matrix, Row_Index_B_matrix, Column_Index_B_matrix, Size_M);
 
 		WTime_Start = MPI_Wtime();
-		Multiplication_Matrix(Matrix_A, Matrix_B, Matrix_C, Size_M, Current_Rank, Size_M);
+		CCS_Multipication_Matrix(Matrix_C, N_zero_val_A_matrix, Row_Index_A_matrix, Column_Index_A_matrix, N_zero_val_B_matrix, Row_Index_B_matrix, Column_Index_B_matrix, N_Zero_val, Current_Rank, N_Zero_val);
 		WTime_End = MPI_Wtime();
 		Single_Time = WTime_End - WTime_Start;
 
@@ -187,7 +176,7 @@ int main(int argc, char** argv)
 				cout << Matrix_A[i][c] << "|";				
 			}
 			cout << endl;
-		}		
+		}	
 		
 		cout << "\n\nMatrix B:\n";
 		for (int i = 0; i < Size_M; i++)
@@ -199,8 +188,8 @@ int main(int argc, char** argv)
 			}
 			cout << endl;
 		}
-
-		cout << "\n\nMatrix C (single):\n";
+		
+		cout << "\n\nMatrix C:\n";
 		for (int i = 0; i < Size_M; i++)
 		{
 			cout << "\t\t|";
@@ -210,9 +199,9 @@ int main(int argc, char** argv)
 				Matrix_C[i][c] = 0;						// Clear C matrix for parallel input
 			}
 			cout << endl;
-		}
+		}		
 		WTime_Start = MPI_Wtime();
-		Multiplication_Matrix(Matrix_A, Matrix_B, Matrix_C, Size_M, Current_Rank, Part_Size);		
+		CCS_Multipication_Matrix(Matrix_C, N_zero_val_A_matrix, Row_Index_A_matrix, Column_Index_A_matrix, N_zero_val_B_matrix, Row_Index_B_matrix, Column_Index_B_matrix, N_Zero_val, Current_Rank, Part_Size);		
 	}
 	MPI_Bcast(N_zero_val_A_matrix, N_Zero_val, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(Row_Index_A_matrix, N_Zero_val, MPI_INT, 0, MPI_COMM_WORLD);
@@ -221,32 +210,28 @@ int main(int argc, char** argv)
 	MPI_Bcast(Row_Index_B_matrix, N_Zero_val, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(Column_Index_B_matrix, N_Zero_val, MPI_INT, 0, MPI_COMM_WORLD);	
 
-	Convert_To_Matrix(N_zero_val_A_matrix, Row_Index_A_matrix, Column_Index_A_matrix, Matrix_A, N_Zero_val);
-	Convert_To_Matrix(N_zero_val_B_matrix, Row_Index_B_matrix, Column_Index_B_matrix, Matrix_B, N_Zero_val);
-
-	Multiplication_Matrix(Matrix_A, Matrix_B, Matrix_C, Size_M, Current_Rank, Part_Size);
-	
-	int Index = 0;
-	double* Matrix_C_Send = new double[Size_M * Size_M];
-	for (int Row = 0; Row < Size_M; Row++)
+	if (Current_Rank!=0)
 	{
-		for (int Column = 0; Column < Size_M; Column++)
+		CCS_Multipication_Matrix(Matrix_C, N_zero_val_A_matrix, Row_Index_A_matrix, Column_Index_A_matrix, N_zero_val_B_matrix, Row_Index_B_matrix, Column_Index_B_matrix, N_Zero_val, Current_Rank, Part_Size);
+		int Index = 0;
+		double* Matrix_C_Send = new double[Size_M * Size_M];
+		for (int Row = 0; Row < Size_M; Row++)
 		{
-			Matrix_C_Send[Index] = Matrix_C[Row][Column];
-			Index++;
-		}
-	}
-	
-	if (Current_Rank != 0)
-	{
+			for (int Column = 0; Column < Size_M; Column++)
+			{
+				Matrix_C_Send[Index] = Matrix_C[Row][Column];
+				Index++;
+			}
+		}		
 		MPI_Send(&Matrix_C_Send[0], Size_M* Size_M, MPI_DOUBLE, 0, 500, MPI_COMM_WORLD);
 	}
+	
 	if (Current_Rank == 0)
 	{
-		for (int i = 1; i < Size_M / Part_Size; i++)
+		for (int i = 1; i < N_Zero_val / Part_Size; i++)
 		{
-			MPI_Recv(&Matrix_C_Rec[0], Size_M * Size_M, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			Index = 0;
+			MPI_Recv(&Matrix_C_Rec[0], Size_M * Size_M, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);			
+			int Index = 0;
 			for (int Row = 0; Row < Size_M; Row++)
 			{
 				for (int Column = 0; Column < Size_M; Column++)
