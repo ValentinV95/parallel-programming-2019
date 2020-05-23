@@ -281,7 +281,7 @@ int main (int argc , char** argv)
 	csmath.matrixToCRS(mat);
 	csmathsec.matrixToCRS(matsec);
 	result = csmath * csmathsec;
-	resultPar csmath.crsParallelMylt(csmathsec);
+	resultPar csmath.crsParallelMult(csmathsec);
 	if (result == resultPar)
 		std::cout << "\n\t work";
 	else
