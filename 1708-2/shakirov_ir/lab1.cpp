@@ -1,240 +1,338 @@
-﻿#include <iostream>
+#include <assert.h>
+#include <stdio.h>
+#include <omp.h>
+#include <iostream>
+#include <cmath>
 #include <vector>
-#include <complex>
 #include <random>
-#include <ctime>
-#include <algorithm>
 
-class SparseComplexMatrix {
-private:
-	int rows_num;
-	int cols_num;
+const double zerocol = 0.000001;
 
-	std::vector<std::complex<double>> values;
-	std::vector<int> col_index;
-	std::vector<int> row_index;
+int random(int lower_bound, int upper_bound) {
+	std::random_device rd;
+	std::mt19937 rng(rd());
+	std::uniform_int_distribution<int> uni(lower_bound, upper_bound);
+	return uni(rng);
+}
+
+class TComplex {
+	int Re;
+	int Im;
+
 public:
-	SparseComplexMatrix();
-	SparseComplexMatrix(int _rows_num, int _cols_num);
-	SparseComplexMatrix(int _rows_num, int _cols_num, std::vector<std::complex<double>> _values,
-		std::vector<int> _col_index, std::vector<int> _row_index);
-	bool operator==(const SparseComplexMatrix& mat) const&;
-	SparseComplexMatrix operator*(const SparseComplexMatrix& mat) const&;
-	SparseComplexMatrix(const SparseComplexMatrix& sparse_complex_matrix);
-	SparseComplexMatrix matrixToCRS(std::vector<std::vector<std::complex<double>>> matrix);
-	SparseComplexMatrix transpose();
-	void printCRS();
+	explicit TComplex(int a = 0, int b = 0);
+	~TComplex();
+	void Print();
+	void Input();
+
+	const TComplex& operator= (TComplex);
+	TComplex operator +(const TComplex &c);
+	TComplex operator *(const TComplex &c);
+	TComplex operator -(const TComplex &c);
+	TComplex operator /(const TComplex &c);
+	double modul() {
+		double tmp;
+		tmp = sqrt(static_cast<double>((Re*Re) + (Im*Im)));
+		return static_cast<double>(tmp);
+	}
 };
 
-std::vector<std::vector<std::complex<double>>> randomMatrix(int _rows_num, int _cols_num);
-
-SparseComplexMatrix::SparseComplexMatrix() {
-	rows_num = 0;
-	cols_num = 0;
+TComplex::TComplex(int a, int b) {
+	Re = a;
+	Im = b;
 }
 
-SparseComplexMatrix::SparseComplexMatrix(int _rows_num, int _cols_num) {
-	if (_rows_num < 0)
-		throw std::runtime_error("Error! Incorrect numbers of rows!\n");
-	if (_cols_num < 0)
-		throw std::runtime_error("Error! Incorrect numbers of cols!\n");
-	rows_num = _rows_num;
-	cols_num = _cols_num;
+TComplex::~TComplex(void) {}
+
+const TComplex& TComplex::operator= (TComplex CopyBuffer) {
+	Re = CopyBuffer.Re;
+	Im = CopyBuffer.Im;
+	return *this;
 }
 
-SparseComplexMatrix::SparseComplexMatrix(int _rows_num, int _cols_num, std::vector<std::complex<double>> _values,
-	std::vector<int> _col_index, std::vector<int> _row_index) {
-	if (_rows_num < 0)
-		throw std::runtime_error("Error! Incorrect numbers of rows!\n");
-	if (_cols_num < 0)
-		throw std::runtime_error("Error! Incorrect numbers of cols!\n");
-	rows_num = _rows_num;
-	cols_num = _cols_num;
-	values = _values;
-	col_index = _col_index;
-	row_index = _row_index;
+
+void TComplex::Print() {
+	if ((Re == 0) && (Im == 0))
+		std::cout << "0";
+	if ((Re == 0) && (Im != 0))
+		printf(" %di ", Im);
+	if ((Re != 0) && (Im == 0))
+		printf(" %d ", Re);
+	if ((Re != 0) && (Im != 0) && (Im > 0))
+		printf(" %d+%di ", Re, Im);
+	if ((Re != 0) && (Im != 0) && (Im < 0))
+		printf(" %d%di ", Re, Im);
 }
 
-SparseComplexMatrix::SparseComplexMatrix(const SparseComplexMatrix& sparse_complex_matrix) {
-	rows_num = sparse_complex_matrix.rows_num;
-	cols_num = sparse_complex_matrix.cols_num;
-	values = sparse_complex_matrix.values;
-	col_index = sparse_complex_matrix.col_index;
-	row_index = sparse_complex_matrix.row_index;
+void TComplex::Input() {
+	Re = random(1, 5);
+	Im = random(0, 5);
 }
 
-std::vector<std::vector<std::complex<double>>> randomMatrix(int _rows_num, int _cols_num) {
-	std::mt19937 gen;
-	gen.seed(static_cast<unsigned int>(time(0)));
-	std::vector<std::vector<std::complex<double>>> result(_rows_num);
-	for (int i = 0; i < _rows_num; ++i)
-		result[i].resize(_cols_num);
-	for (int i = 0; i < _rows_num; ++i)
-		for (int j = 0; j < _cols_num; ++j) {
-			std::complex<double> val(0.0, 0.0);
-			result[i][j] = val;
-			if (gen() % 10 >= 8) {
-				std::complex<double> tmp(static_cast<double>(gen() % 10), static_cast<double>(gen() % 10));
-				result[i][j] = tmp;
-			}
-		}
-	return result;
+TComplex TComplex:: operator + (const TComplex &X) {
+	TComplex res;
+	res.Re = Re + X.Re;
+	res.Im = Im + X.Im;
+	return res;
 }
 
-SparseComplexMatrix SparseComplexMatrix::matrixToCRS(std::vector<std::vector<std::complex<double>>> matrix) {
-	rows_num = matrix.size();
-	cols_num = matrix[0].size();
-	if (rows_num < 0)
-		throw std::runtime_error("Error! Incorrect numbers of rows!\n");
-	if (cols_num < 0)
-		throw std::runtime_error("Error! Incorrect numbers of cols!\n");
-	SparseComplexMatrix result(rows_num, cols_num);
-	std::complex<double> empty(0.0, 0.0);
-	int tmp = -1;
-	int point;
-	int count;
-	for (int i = 0; i < rows_num; ++i) {
-		count = 0;
-		point = tmp;
-		for (int j = 0; j < cols_num; ++j) {
-			if (matrix[i][j] != empty) {
-				result.values.push_back(matrix[i][j]);
-				result.col_index.push_back(j);
-				tmp++;
-				count++;
-			}
-		}
-		if (count == 0)
-			result.row_index.push_back(point + 1);
-		else
-			result.row_index.push_back(tmp - count + 1);
-	}
-	tmp++;
-	result.row_index.push_back(tmp);
-	return result;
+TComplex TComplex::operator -(const TComplex &C) {
+	TComplex res;
+	res.Re = Re - C.Re;
+	res.Im = Im - C.Im;
+	return res;
 }
 
-SparseComplexMatrix SparseComplexMatrix::transposeCRS() {
-	SparseComplexMatrix result(cols_num, rows_num);
-	std::vector<int> rowT_count;
-	std::vector<int> row_count;
-	std::vector<int> row_idxs;
-	result.row_index.push_back(0);
-	for (int i = 0; i < rows_num; ++i) {
-		row_count.push_back(row_index[i + 1] - row_index[i]);
-		for (int j = 0; j < row_count[i]; ++j)
-			row_idxs.push_back(i);
-	}
-	for (int i = 0; i < cols_num; ++i) {
-		for (unsigned j = 0; j < values.size(); ++j) {
-			if (col_index[j] == i) {
-				result.values.push_back(values[j]);
-				result.col_index.push_back(row_idxs[j]);
-				k++;
-			}
-		}
-		rowT_count.push_back(k);
-		k = 0;
-		result.row_index.push_back(result.row_index[i] + rowT_count[i]);
-	}
-	return result;
+TComplex TComplex::operator *(const TComplex &D) {
+	TComplex res;
+	res.Re = Re * D.Re - Im * D.Im;
+	res.Im = Re * D.Im + D.Re*Im;
+	return res;
 }
 
-bool SparseComplexMatrix::operator==(const SparseComplexMatrix& mat) const& {
-	if (rows_num != mat.rows_num || cols_num != mat.cols_num ||
-		values != mat.values || col_index != col_index || row_index != mat.row_index) {
-		return false;
+TComplex TComplex::operator /(const TComplex &R) {
+	TComplex res;
+	if ((R.Re == 0) && (R.Im == 0)) {
+		std::cout << "u can't divide on 0";
 	}
 	else {
-		for (unsigned i = 0; i < values.size(); ++i) {
-			if (values[i].real() != mat.values[i].real() || values[i].imag() != mat.values[i].imag())
-				return false;
+		res.Re = (Re*R.Re + Im * R.Im) / (R.Re*R.Re + R.Im*R.Im);
+		res.Im = (Im*R.Re - R.Im*Re) / (R.Re*R.Re + R.Im*R.Im);
+	}
+	return res;
+}
+
+struct Matrix {
+	int N;
+	int M;
+	int NZ;
+	TComplex *Value;
+	int*Col;
+	int*RowIndex;
+
+	Matrix(int n, int m, int nz) : N(n), M(m), NZ(nz) {
+		Value = new TComplex[NZ];
+		Col = new int[NZ];
+		RowIndex = new int[N + 1];
+	}
+
+	Matrix(Matrix &mat) : N(mat.N), M(mat.M), NZ(mat.NZ) {
+		Value = new TComplex[mat.NZ];
+		for (int i = 0; i < mat.NZ; i++)
+			Value[i] = mat.Value[i];
+		Col = new int[mat.NZ];
+		for (int i = 0; i < mat.NZ; i++)
+			Col[i] = mat.Col[i];
+		RowIndex = new int[mat.N + 1];
+		for (int i = 0; i < mat.N + 1; i++)
+			RowIndex[i] = mat.RowIndex[i];
+	}
+};
+
+void Print(int N, int M, const Matrix *mat) {
+	int k = 0;
+	int col;
+
+	for (int i = 0; i < N; i++) {
+		col = 0;
+		for (int j = 0; j < M; j++) {
+			if (((mat->Col[k]) == j) && (col < (mat->RowIndex[i + 1] - mat->RowIndex[i]))) {
+				(mat->Value[k]).Print();
+				k++;
+				col++;
+			}
+			else {
+				printf("0 ");
+			}
+			if (j == (M - 1)) printf("\n");
 		}
-		return true;
+	}
+	printf("\n");
+}
+
+void GetMatrix(int N, int M, int countinrow, const Matrix *mat) {
+	int tmp;
+	bool flag;
+
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < countinrow; j++) {
+			do {
+				mat->Col[i*countinrow + j] = random(0, 32767) % M;
+				flag = false;
+				for (int k = 0; k < j; k++)
+					if (mat->Col[i*countinrow + j] == mat->Col[i * countinrow + k]) flag = true;
+			} while (flag == true);
+		}
+
+		for (int j = 0; j < (countinrow - 1); j++)
+			for (int k = 0; k < (countinrow - 1); k++)
+				if (mat->Col[i*countinrow + k] > mat->Col[i * countinrow + k + 1]) {
+					tmp = mat->Col[i*countinrow + k];
+					mat->Col[i*countinrow + k] = mat->Col[i * countinrow + k + 1];
+					mat->Col[i * countinrow + k + 1] = tmp;
+				}
+	}
+
+	TComplex Z;
+	for (int i = 0; i < (countinrow*N); i++) {
+		Z.Input();
+		mat->Value[i] = Z;
+	}
+
+	int startIndex = 0;
+	for (int i = 0; i < (N + 1); i++) {
+		mat->RowIndex[i] = startIndex;
+		startIndex = startIndex + countinrow;
 	}
 }
 
-SparseComplexMatrix SparseComplexMatrix::operator*(const SparseComplexMatrix& mat) const& {
-	SparseComplexMatrix result(rows_num, mat.cols_num);
-	SparseComplexMatrix tmp;
-	tmp = mat;
-	tmp = tmp.transposeCRS();
-	int not_zero_vals = 0;
-	if (cols_num != tmp.cols_num)
-		throw std::runtime_error("Error! Incorrect numbers of cols!\n");
-	result.row_index.push_back(0);
-	for (unsigned i = 1; i < row_index.size(); ++i) {
-		for (unsigned j = 1; j < tmp.row_index.size(); ++j) {
-			std::complex<double> s = 0;
-			int iter1 = row_index[i - 1];
-			int iter2 = tmp.row_index[j - 1];
-			while ((iter1 < row_index[i]) && (iter2 < tmp.row_index[j])) {
-				if (col_index[iter1] == tmp.col_index[iter2]) {
-					s += values[iter1] * tmp.values[iter2];
-					iter1++;
-					iter2++;
-				}
-				else {
-					if (col_index[iter1] < tmp.col_index[iter2]) {
-						iter1++;
-					}
-					else {
-						iter2++;
+void Transposing(Matrix *B, const Matrix *BT) {
+	for (int i = 0; i < B->NZ; i++) {
+		BT->Value[i] = TComplex(0, 0);
+	}
+
+	for (int i = 0; i < B->NZ; i++) {
+		BT->Col[i] = 0;
+	}
+
+	for (int i = 0; i < (B->M + 1); i++) {
+		BT->RowIndex[i] = 0;
+	}
+
+	for (int i = 0; i < B->NZ; i++)
+		BT->RowIndex[B->Col[i] + 1]++;
+
+	int startIndex = 0;
+	int tmp;
+	for (int i = 1; i < ((B->M) + 1); i++) {
+		tmp = BT->RowIndex[i];
+		BT->RowIndex[i] = startIndex;
+		startIndex = startIndex + tmp;
+	}
+
+	TComplex z1;
+	int j1, j2, colm, index1, index2;
+	for (int i = 0; i < B->N; i++) {
+		j1 = B->RowIndex[i];
+		j2 = B->RowIndex[i + 1];
+		colm = i;
+		for (int j = j1; j < j2; j++) {
+			z1 = B->Value[j];
+			index1 = B->Col[j];
+			index2 = BT->RowIndex[index1 + 1];
+			BT->Value[index2] = z1;
+			BT->Col[index2] = colm;
+			(BT->RowIndex[index1 + 1])++;
+		}
+	}
+
+	if ((BT->N < 15) && (BT->M < 15)) {
+		printf("\n matrix Bt \n");
+		Print(BT->N, BT->M, BT);
+	}
+}
+
+void multiplication(const Matrix *A, const Matrix *BT) {
+	double t1, t2;
+	std::vector<TComplex> val;
+	std::vector<int> columns;
+	std::vector<int> indexrow;
+	double modul;
+	t1 = omp_get_wtime();
+	int rowNZ;
+	indexrow.push_back(0);
+	for (int i = 0; i < A->N; i++) {
+		rowNZ = 0;
+		for (int j = 0; j < BT->N; j++) {
+			TComplex summa = TComplex(0, 0);
+			for (int s = A->RowIndex[i]; s < A->RowIndex[i + 1]; s++) {
+				for (int r = BT->RowIndex[j]; r < BT->RowIndex[j + 1]; r++) {
+					if (A->Col[s] == BT->Col[r]) {
+						summa = summa + ((A->Value[s])*(BT->Value[r]));
 					}
 				}
 			}
-			if (s.real() != 0.0 || s.imag() != 0.0) {
-				result.values.push_back(s);
-				result.col_index.push_back(j - 1);
-				not_zero_vals++;
+			modul = (summa.modul());
+			if (modul > zerocol) {
+				columns.push_back(j);
+				val.push_back(summa);
+				rowNZ++;
 			}
 		}
-		result.row_index.push_back(not_zero_vals);
+		indexrow.push_back(rowNZ + indexrow[i]);
 	}
-	return result;
-}
 
-void SparseComplexMatrix::printCRS() {
-	for (unsigned i = 0; i < values.size(); ++i)
-		std::cout << values[i] << " ";
-	std::cout << "\n";
-	for (unsigned i = 0; i < col_index.size(); ++i)
-		std::cout << col_index[i] << " ";
-	std::cout << "\n";
-	for (unsigned i = 0; i < row_index.size(); ++i)
-		std::cout << row_index[i] << " ";
-	std::cout << "\n";
-}
+	Matrix C(A->N, BT->N, columns.size());
 
-void print(std::vector<std::vector<std::complex<double>>> matrix) {
-	int rows = matrix.size();
-	int cols = matrix[0].size();
-	for (int i = 0; i < rows; ++i) {
-		for (int j = 0; j < cols; ++j)
-			std::cout << matrix[i][j] << " ";
-		std::cout << "\n";
+	for (unsigned int j = 0; j < columns.size(); j++) {
+		C.Col[j] = columns[j];
+		C.Value[j] = val[j];
 	}
+
+	for (int i = 0; i < (A->N + 1); i++)
+		C.RowIndex[i] = indexrow[i];
+	t2 = omp_get_wtime();
+
+	if ((C.N < 50) && (C.M < 15)) {
+		printf("Result matrix C: \n");
+		Print(C.N, C.M, &C);
+		printf(" \n");
+	}
+	printf("Runtime:  %f\n", t2 - t1);
 }
 
-int main (int argc , char** argv)
-{
-	bool test;
-	SparseComplexMatrix csmath;
-	SparseComplexMatrix csmathsec;
-	SparseComplexMatrix result;
-	std::vector<std::vector<std::complex<double>>> mat;
-	std::vector<std::vector<std::complex<double>>> matsec;
-	int a = 0, b = 0;
-	a = atoi(argv[1]);
-	b = atoi(argv[2]);
-	mat = randomMatrix(a, b);
-	matsec = randomMatrix(a, b);
-	csmath.matrixToCRS(mat);
-	csmathsec.matrixToCRS(matsec);
-	csmathsec.transposeCRS();
-	if (result == csmath * csmathsec)
-		std::cout << "\n\t work";
-	else
-		std::cout << "\n\t don't work";
+int main(int argc, char* argv[]) {
+	int n, m, nzInRow, n2, m2, nzInRow2;
+	if ((argc != 7) && (argc != 1)) {
+		printf("Invalid input count of parametres.\n");
+		exit(1);
+	}
 
+	if (argc == 7) {
+		n = atoi(argv[1]);
+		m = atoi(argv[2]);
+		nzInRow = atoi(argv[3]);
+		n2 = atoi(argv[4]);
+		m2 = atoi(argv[5]);
+		nzInRow2 = atoi(argv[6]);
+	}
+	else {
+		n = 4;
+		m = 3;
+		nzInRow = 1;
+		n2 = 3;
+		m2 = 6;
+		nzInRow2 = 2;
+	}
+
+	if ((nzInRow > m) || (nzInRow2 > m2)) {
+		printf("Invalid input count of notnull in string.\n");
+		exit(1);
+	}
+	if (m != n2) {
+		printf("Invalid input: M1 != N2 .\n");
+		exit(1);
+	}
+
+	printf("The multiplication of sparse matrices. CRS. Complex type.\n");
+	Matrix A(n, m, nzInRow*n);
+	Matrix B(n2, m2, nzInRow2*n2);
+	Matrix BT(m2, n2, nzInRow2*n2);
+	GetMatrix(n, m, nzInRow, &A);
+
+	if ((A.N < 15) && (A.M < 15)) {
+		printf("matrix A \n");
+		Print(n, m, &A);
+	}
+
+	GetMatrix(n2, m2, nzInRow2, &B);
+
+	if ((B.N < 15) && (B.M < 15)) {
+		printf("matrix B \n");
+		Print(n2, m2, &B);
+	}
+
+	Transposing(&B, &BT);
+	multiplication(&A, &BT);
+	return 0;
 }
