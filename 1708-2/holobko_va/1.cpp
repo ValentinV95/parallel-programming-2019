@@ -1,234 +1,130 @@
-#include <omp.h>
+#include <stdlib.h>
 #include <vector>
-#include <cstring>
-#include <cmath>
-#include <iomanip>
-#include <cstdlib>
 #include <iostream>
+#include <complex>
+#include <random>
 
+using std::vector;
+using std::complex;
 
-#define MAX_NZ 1000000
-#define ZERO_IN_CRS 0.000001
-#define EPS 0.01
-
-size_t nzA, nzB;
-
-
-struct crsMatrix {
-	int N;
-	int NZ;
-	double* Value;
-	int* Col;
-	int* RowIndex;
+struct Matrix {
+  vector<complex<double> > val;
+  vector<int> rows;
+  vector<int> pointer;
 };
 
-void InitializeMatrix(int N, int NZ, crsMatrix *mtx) {
-	mtx->N = N;
-	mtx->NZ = NZ;
-	mtx->Value = new double[NZ];
-	mtx->Col = new int[NZ];
-	mtx->RowIndex = new int[N + 1];
+Matrix createMatrix(int N) {
+  std::default_random_engine gen;
+  std::uniform_int_distribution<int> dist(0, 10);
+
+  Matrix new_matrix;
+  new_matrix.pointer.resize(N + 1, -1);
+
+  int k = 0;
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      double re = (dist(gen) % 2)*dist(gen);
+      double im = re*dist(gen);
+
+      std::cout << re << " + " << im << "i ";
+
+      if (re != 0 || im != 0) {
+        new_matrix.val.push_back(complex<double>(re, im));
+        new_matrix.rows.push_back(j);
+
+        if (new_matrix.pointer[i] < 0) {
+          new_matrix.pointer[i] = k;
+        }
+        k++;
+      }
+    }
+    std::cout << std::endl;
+  }
+  new_matrix.pointer[N] = k;
+
+  for (int i = N; i >= 1; i--) {
+    if (new_matrix.pointer[i - 1] < 0) {
+      new_matrix.pointer[i - 1] = new_matrix.pointer[i];
+    }
+  }
+
+  return new_matrix;
 }
 
-void DeleteMatrix(crsMatrix *mtx) {
-	delete[] mtx->Value;
-	delete[] mtx->Col;
-	delete[] mtx->RowIndex;
+void Transp(Matrix *a, int col) {
+  Matrix a_T;
+  a_T.pointer.resize(col + 1, 0);
+  size_t nz_size = a->val.size();
+  a_T.val.resize(nz_size, complex<double>(0, 0));
+  a_T.rows.resize(nz_size);
+
+  for (size_t i = 0; i < nz_size; i++) {
+    a_T.pointer[a->rows[i] + 1]++;
+  }
+  for (int i = 1; i < col + 1; i++) {
+    a_T.pointer[i] += a_T.pointer[i - 1];
+  }
+
+  for (int i = 0; i < col; i++) {
+    int j = a->pointer[i];
+    int k = a->pointer[i + 1];
+
+    for (; j < k; j++) {
+      int pos = a_T.pointer[a->rows[j]];
+
+      while (a_T.val[pos] != complex<double>(0, 0)) {
+        pos++;
+      }
+      a_T.val[pos] = a->val[j];
+      a_T.rows[pos] = i;
+    }
+  }
+  a->val = a_T.val;
+  a->pointer = a_T.pointer;
+  a->rows = a_T.rows;
 }
 
-void GenerateCRS(crsMatrix *mtx, int n, int cntInRow) {
-	int i, j, k, f, tmp, notNull, c;
-	notNull = cntInRow * n;
-	InitializeMatrix(n, notNull, mtx);
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < cntInRow; j++) {
-			do {
-				mtx->Col[i * cntInRow + j] = std::rand() % n;
-				f = 0;
-				for (k = 0; k < j; k++)
-					if (mtx->Col[i * cntInRow + j]
-						== mtx->Col[i * cntInRow + k])
-						f = 1;
-			} while (f == 1);
-		}
-		for (j = 0; j < cntInRow - 1; j++)
-			for (k = 0; k < cntInRow - 1; k++)
-				if (mtx->Col[i * cntInRow + k]
-			> mtx->Col[i * cntInRow + k + 1]) {
-					tmp = mtx->Col[i * cntInRow + k];
-					mtx->Col[i * cntInRow + k] = mtx->Col[i * cntInRow + k + 1];
-					mtx->Col[i * cntInRow + k + 1] = tmp;
-				}
-	}
-	for (i = 0; i < cntInRow * n; i++)
-		mtx->Value[i] = std::rand() % 9 + 1;
-	c = 0;
-	for (i = 0; i <= n; i++) {
-		mtx->RowIndex[i] = c;
-		c += cntInRow;
-	}
+void linMult(const Matrix &a, const Matrix &b, Matrix *c, int N) {
+  c->pointer.resize(N + 1, 0);
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      complex<double> sum = complex<double>(0, 0);
+
+      for (int k = b.pointer[i]; k < b.pointer[i + 1]; k++) {
+        for (int p = a.pointer[j]; p < a.pointer[j + 1]; p++) {
+          if (a.rows[p] == b.rows[k]) {
+            sum += a.val[p] * b.val[k];
+            break;
+          }
+        }
+      }
+
+      std::cout << sum.real() << " + " << sum.imag() << "i ";
+
+      if (sum != complex<double>(0, 0)) {
+        c->val.push_back(sum);
+        c->rows.push_back(j);
+        c->pointer[i + 1]++;
+      }
+    }
+    std::cout << std::endl;
+
+    c->pointer[i + 1] += c->pointer[i];
+  }
 }
 
-void PrintMatrix(crsMatrix *mtx) {
-	int i;
-	int k = mtx->NZ;
-	int N = mtx->N + 1;
-
-	printf("Matrix in CRS: \n");
-	printf("\n Value: ");
-	for (i = 0; i < k; i++) {
-		printf(" %.1f", mtx->Value[i]);
-	}
-	printf("\n Col: ");
-	for (i = 0; i < k; i++) {
-		printf(" %d", mtx->Col[i]);
-	}
-	printf("\n RowIndex: ");
-	for (i = 0; i < N; i++) {
-		printf(" %d", mtx->RowIndex[i]);
-	}
-	printf("\n");
-	fflush(stdout);
-}
-
-
-
-void Transp(crsMatrix *B) {
-	crsMatrix BT;
-	int tmp = 0, S = 0, IIndex = 0, RIndex = 0, i, j;
-	double V = 0.0;
-	InitializeMatrix(B->N, B->NZ, &BT);
-
-	memset(BT.RowIndex, 0, ((B->N) + 1) * sizeof(int));
-	for (i = 0; i < B->NZ; i++)
-		BT.RowIndex[B->Col[i] + 1]++;
-
-	for (i = 1; i <= B->N; i++) {
-		tmp = BT.RowIndex[i];
-		BT.RowIndex[i] = S;
-		S = S + tmp;
-	}
-
-	for (i = 0; i < B->N; i++) {
-		int j1 = B->RowIndex[i];
-		int j2 = B->RowIndex[i + 1];
-		int Col = i;
-		for (j = j1; j < j2; j++) {
-			V = B->Value[j];
-			RIndex = B->Col[j];
-			IIndex = BT.RowIndex[RIndex + 1];
-			BT.Value[IIndex] = V;
-			BT.Col[IIndex] = Col;
-			BT.RowIndex[RIndex + 1]++;
-		}
-	}
-
-	DeleteMatrix(B);
-
-	InitializeMatrix(BT.N, BT.NZ, B);
-
-	for (i = 0; i < BT.NZ; i++) {
-		B->Col[i] = BT.Col[i];
-		B->Value[i] = BT.Value[i];
-	}
-
-	for (i = 0; i < (BT.N + 1); i++) {
-		B->RowIndex[i] = BT.RowIndex[i];
-	}
-
-	DeleteMatrix(&BT);
-}
-
-void Multiplication(const crsMatrix &A, const crsMatrix &B, crsMatrix *C) {
-	int AN = A.N, BN = B.N, rowNZ, i, j, k, L;
-	std::vector<int> columns;
-	std::vector<double> values;
-	std::vector<int> row_index;
-
-
-	row_index.push_back(0);
-	for (i = 0; i < AN; i++) {
-		rowNZ = 0;
-		for (j = 0; j < BN; j++) {
-			double sum = 0;
-			for (k = A.RowIndex[i]; k < A.RowIndex[i + 1]; k++) {
-				for (L = B.RowIndex[j]; L < B.RowIndex[j + 1]; L++) {
-					if (A.Col[k] == B.Col[L]) {
-						sum += A.Value[k] * B.Value[L];
-						break;
-					}
-				}
-			}
-			if (fabs(sum) > ZERO_IN_CRS) {
-				columns.push_back(j);
-				values.push_back(sum);
-				rowNZ++;
-			}
-		}
-		row_index.push_back(rowNZ + row_index[i]);
-	}
-	InitializeMatrix(AN, columns.size(), C);
-	for (unsigned int j = 0; j < columns.size(); j++) {
-		C->Col[j] = columns[j];
-		C->Value[j] = values[j];
-	}
-	for (int i = 0; i <= AN; i++)
-		C->RowIndex[i] = row_index[i];
-}
-
-
-
-int main(int argc, char **argv) {
-	double serialTime;
-	int SizeM = 0, NNZRow = 0;
-	crsMatrix A, B, C;
-
-	if (argc > 2) {
-		SizeM = atoi(argv[1]);
-		NNZRow = atoi(argv[2]);
-	}
-	else {
-		SizeM = 4;
-		NNZRow = 2;
-	}
-
-	if (SizeM < NNZRow) {
-		printf("Invalid input parameters\n");
-		return 1;
-	}
-
-
-	GenerateCRS(&A, SizeM, NNZRow);
-	GenerateCRS(&B, SizeM, NNZRow);
-	Transp(&B);
-	serialTime = omp_get_wtime();
-	Multiplication(A, B, &C);
-
-	serialTime = omp_get_wtime() - serialTime;
-
-
-	std::cout << "Size of matrix = " << SizeM << "x" << SizeM << std::endl;
-	std::cout << "Not NULL elements in ROW = " << NNZRow << std::endl;
-	std::cout << "Serial Time: " <<
-		std::fixed << std::setprecision(8) << serialTime << std::endl;
-
-
-
-	if (SizeM < 10) {
-		std::cout << "A_________________________" << std::endl;
-		PrintMatrix(&A);
-		std::cout << "Transp B__________________" << std::endl;
-		PrintMatrix(&B);
-		Transp(&B);
-		std::cout << "B_________________________" << std::endl;
-		PrintMatrix(&B);
-		std::cout << "Serial Result_____________" << std::endl;
-		PrintMatrix(&C);
-	}
-
-	DeleteMatrix(&A);
-	DeleteMatrix(&B);
-	DeleteMatrix(&C);
-
-	return 0;
+int main(int argc, char** argv) {
+  int N = 5;
+  if (argc == 2) {
+    N = atoi(argv[1]);
+  }
+  std::cout << "Matrix A (printed as transposed)" << std::endl;
+  Matrix a = createMatrix(N);
+  std::cout << "Matrix B (printed as transposed)" << std::endl;
+  Matrix b = createMatrix(N);
+  Transp(&a, N);
+  Matrix c;
+  std::cout << "Matrix C (printed as transposed)" << std::endl;
+  linMult(a, b, &c, N);
+  return 0;
 }
