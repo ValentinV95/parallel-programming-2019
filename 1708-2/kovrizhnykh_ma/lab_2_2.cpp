@@ -1,31 +1,33 @@
-#include <omp.h>
-#include <vector>
+#include <algorithm>
 #include <cstdlib>
-#include <climits>
 #include <time.h>
 #include <stdio.h>
+#include <omp.h>
 
-void quickSort(std::vector <double>* vector, int left, int right) 
+void quickSort(double* array, int left, int right) 
 {
     while (right > left) 
 	{
         int iterate_left = left;
         int iterate_right = right;
-        double pivot = (*vector)[(left + right) >> 1];
+        double pivot = array[(left + right) >> 1];
 
         while (iterate_left <= iterate_right) 
 		{
-            while ((*vector)[iterate_left] < pivot) 
+            while (array[iterate_left] < pivot) 
 			{
                 iterate_left += 1;
             }
-            while ((*vector)[iterate_right] > pivot) 
+            while (array[iterate_right] > pivot) 
 			{
                 iterate_right -= 1;
             }
             if (iterate_left <= iterate_right) 
 			{
-                std::swap((*vector)[iterate_left], (*vector)[iterate_right]);
+                double temp = array[iterate_left];
+                array[iterate_left] = array[iterate_right];
+                array[iterate_right] = temp;
+                
                 iterate_left += 1;
                 iterate_right -= 1;
             }
@@ -33,318 +35,252 @@ void quickSort(std::vector <double>* vector, int left, int right)
 
         if ((iterate_left << 1) > left + right) 
 		{
-            quickSort(vector, iterate_left, right);
+            quickSort(array, iterate_left, right);
             right = iterate_left - 1;
         } 
 		else 
 		{
-            quickSort(vector, left, iterate_left - 1);
+            quickSort(array, left, iterate_left - 1);
             left = iterate_left;
         }
     }
 }
 
-void even(int start, long int left_part, long int right_part, std::vector <double>* vector) 
+void even(double* array, double* tmp, int left_part, int right_part) 
 {
-    std::vector <double> temporary(left_part);
-    
-    long int i = 0;
-    
-    while (i < left_part) 
-	{
-    	temporary[i] = (*vector)[start + i];
-    	i += (1 << 1);
-    }
-
-    right_part = start + left_part + right_part;
-    
-    long int first_iter = 0;
-    long int second_iter = start + left_part;
-    long int common_iter = start;
-    
-    for (; first_iter < left_part && second_iter < right_part; common_iter += 2) 
-	{
-    	if (temporary[first_iter] < (*vector)[second_iter]) 
+	int i = 0, j;	
+    	while(i < left_part) 
 		{
-            (*vector)[common_iter] = temporary[first_iter];
-            first_iter += 2;
-        } 
+    		tmp[i] = array[i];
+    		i += (1 << 1);
+    	}
+
+    	double* array2 = array + left_part;
+    	int a = 0, b = 0;
+    	i = a;
+    	
+    	for (i; (a < left_part) && (b < right_part); i += (1 << 1)) 
+		{
+    		array[i] = tmp[a];
+    		
+    		if (tmp[a] <= array2[b]) 
+			{
+            	a += (1 << 1);
+        	} 
+			else
+			{
+            	array[i] = array2[b];
+            	b += (1 << 1);
+        	}
+    	}
+    	
+    	j = b;
+    	if (a == left_part) 
+		{
+    		while(j < right_part) 
+			{
+    			array[i] = array2[j];
+    			j += (1 << 1);
+    			i += (1 << 1);
+    		}
+    	} 
 		else 
 		{
-            (*vector)[common_iter] = (*vector)[second_iter];
-            second_iter += 2;
-        }
-    }
-    
-    if (first_iter >= left_part) 
-	{
-    
-    	i = second_iter;
-    	
-    	while (i < right_part) 
-		{
-    		(*vector)[common_iter] = (*vector)[i];
-    		i += 2;
-    		common_iter += 2;
+    		j = a;
+    		while(j < left_part)
+			{
+    			array[i] = tmp[j];
+    			j += (1 << 1);
+    			i += (1 << 1);
+    		}
     	}
-    } 
-	else 
-	{   
-        i = first_iter;
-        while (i < left_part) 
-		{
-    		(*vector)[common_iter] = temporary[i];
-    		i += 2;
-    		common_iter += 2;
-    	}
-    }
 }
 
-void odd(int start, long int left_part, long int right_part, std::vector <double>* vector) 
+void odd(double* array, double* tmp, int left_part, int right_part)
 {
-    std::vector <double> temporary(left_part);
-    
-    long int i = 1;
-    
-    while (i < left_part) 
-	{
-    	temporary[i] = (*vector)[start + i];
-    	i += (1 << 1);
-    }
-    
-    right_part = start + left_part + right_part;
-    
-    long int first_iter = 1;
-    long int second_iter = start + left_part + 1;
-    long int common_iter = start + 1;
-    
-    for (; first_iter < left_part && second_iter < right_part; common_iter += 2) 
-	{
-    	if (temporary[first_iter] < (*vector)[second_iter]) 
+	int i = 1, j;	
+    	while(i < left_part) 
 		{
-            (*vector)[common_iter] = temporary[first_iter];
-            first_iter += 2;
-        } 
-		else 
-		{
-            (*vector)[common_iter] = (*vector)[second_iter];
-            second_iter += 2;
-        }
-    }
-    
-    if (first_iter >= left_part) 
-	{
-    
-    	i = second_iter;
+    		tmp[i] = array[i];
+    		i += (1 << 1);
+    	}
+        	
+    	double* array2 = array + left_part;
+    	int a = 1, b = 1;
+    	i = a;
     	
-    	while (i < right_part) 
+    	for (i; (a < left_part) && (b < right_part); i += (1 << 1)) 
 		{
-    		(*vector)[common_iter] = (*vector)[i];
-    		i += 2;
-    		common_iter += 2;
+    		array[i] = tmp[a];
+    		
+    		if (tmp[a] <= array2[b]) 
+			{
+            	a += (1 << 1);
+        	} 
+			else
+			{
+            	array[i] = array2[b];
+            	b += (1 << 1);
+        	}
     	}
-    } 
-	else 
-	{   
-        i = first_iter;
-        while (i < left_part) 
+    	
+    	j = b;
+    	if (a == left_part) 
 		{
-    		(*vector)[common_iter] = temporary[i];
-    		i += 2;
-    		common_iter += 2;
+    		while(j < right_part) 
+			{
+    			array[i] = array2[j];
+    			j += (1 << 1);
+    			i += (1 << 1);
+    		}
+    	} 
+		else
+		{
+    		j = a;
+    		while(j < left_part)
+			{
+    			array[i] = tmp[j];
+    			j += (1 << 1);
+    			i += (1 << 1);
+    		}
     	}
-    }
 }
 
-void quickSortParallel(int threads, int size, std::vector <double>* vector) 
+void quick(double* array, double* tmp, int size, int part) 
 {
-    omp_set_num_threads(threads);
-    
-    int delta;
-    
-    int deltaA = size / threads + (size / threads) % 2;
-    int deltaB = (size - (threads - 1) * deltaA) + (size - (threads - 1) * deltaA) % 2;
-
-    delta = (threads - 1) * deltaA;
-    delta += deltaB;
-    delta -= size;
-    
-    int i = 0;
-    while (i < delta) 
+	if (size <= part) 
 	{
-    	vector->push_back(INT_MAX);
-    	i += 1;
-    }
-    
-    int number_of_threads = threads;
-#pragma omp parallel
-    {
-        #pragma omp for
+        	quickSort(array, 0, size - 1);
+    } 
+	else 
+	{
+        int divide = size >> 1;
+        int partial = divide + divide % 2;
+	
+        #pragma omp task 
+        {
+            quick(array, tmp, partial, part);
+        }
+        #pragma omp task 
+        {
+            quick(array + partial, tmp + partial, size - partial, part);
+        }
+        #pragma omp taskwait
         
-        for (i = 0; i < number_of_threads; i += 1) 
-		{
-        	int left = deltaA * i;
-			int right = size + delta - 1;
-			
-            if ( i + 1 != number_of_threads ) 
-			{
-            	right = left + deltaA - 1;
-            }
-            
-            quickSort(vector, left, right);
-        }
-    }
-    int count_m = number_of_threads >> 1;
-    int k = 1;
-    int last = 0;
-    
-    while (count_m > 0)
-	{
-#pragma omp parallel
+        #pragma omp task 
         {
-            if (omp_get_thread_num() < (count_m << 1)) 
-			{
-            	int first = deltaA * k;
-            	int second = deltaA * last + deltaB;
-
-                if (!(omp_get_thread_num() % 2)) 
-				{
-                	if (omp_get_thread_num() == number_of_threads - 2) 
-					{
-                		even(omp_get_thread_num() * first, first, second, vector);
-                	} 
-					else 
-					{
-                		even(omp_get_thread_num() * first, first, first, vector);
-                	}
-                }
-				else 
-				{
-                	if (omp_get_thread_num() == number_of_threads - 1) 
-					{
-                		odd((omp_get_thread_num() - 1) * first, first, second, vector);
-                	} 
-					else 
-					{
-                		odd((omp_get_thread_num() - 1) * first, first, first, vector);
-                	}
-                }
-            }
+           even(array, tmp, partial, size - partial);
         }
-#pragma omp parallel
+        #pragma omp task 
         {
-            int thread = omp_get_thread_num();
-            if (thread < (count_m << 1)) 
-			{
-                if (!(thread % 2)) 
-				{
-                    int start = omp_get_thread_num() * deltaA * k + 1;
-                                          
-                    int final = (*vector).size() - 1;
-                    
-                    if ( (omp_get_thread_num() + 1) != (number_of_threads - 1) ) 
-					{
-                    	final = (omp_get_thread_num() + 2) * deltaA * k;
-                    }
+            odd(array, tmp, partial, size - partial);
+        }
+        #pragma omp taskwait
 
-                    for (int i = start; i < final; i += (2 << 1)) 
-					{
-                        if ((*vector)[i] > (*vector)[i + 1]) 
-						{
-                            std::swap((*vector)[i], (*vector)[i + 1]);
-                        }
-                    }
-                    
-                } 
-				else
-				{
-                    int start = (omp_get_thread_num() - 1) * deltaA * k + 3;
-                    int final = (*vector).size() - 1;
-                    
-                    if (omp_get_thread_num() != (number_of_threads - 1)) 
-					{
-                    	final = (omp_get_thread_num() + 1) * deltaA * k;
-                    }
-
-                    for (int i = start; i < final - 1; i += (2 << 1)) 
-					{
-                        if ((*vector)[i] > (*vector)[i + 1]) 
-						{
-                            std::swap((*vector)[i], (*vector)[i + 1]);
-                        }
-                    }
-                }
+        #pragma omp for
+        for (int i = 1; i < (size + 1) >> 1; i += 1) {
+            if (array[i << 1] < array[(i << 1) - 1]) {
+                std::swap(array[(i << 1) - 1], array[i << 1]);
             }
         }
-        if (!(number_of_threads % 2)) 
-		{
-            last += k;
-        }
-        number_of_threads -= count_m;
-        count_m = number_of_threads >> 1;
-        k <<= 1;
-    }
-    
-    i = 0;
-    while (i < delta) 
-	{
-    	vector->pop_back();
-    	i += 1;
     }
 }
 
-void randomVec(int size, std::vector <double>* vector) 
+void quickSort__OMP(double* array, int threads, int size) 
+{
+    double* temporary = new double[size];
+    
+    int portion = size / threads;
+    if (size % threads)
+        portion += 1;
+
+
+    #pragma omp task 
+    {
+        quick(array, temporary, size, portion);
+    }
+}
+
+void getRandomArray(double* arr, int size) 
 {
 	int i = 0;
 	double number;
-	while (i < size) 
+	
+	while(i < size) 
 	{
 		number = rand() / (RAND_MAX + 1.0);
-		(*vector).push_back(number);
+		arr[i] = number;
 		i += 1;
 	}
 }
 
-void isSorted(std::vector <double>* vector)
-{
-	for (int i = 0; i < (*vector).size() - 1; i++)
-	{
-		if ( (*vector)[i] > (*vector)[i+1])		{printf("Incorrect sort %f %f", (*vector)[i], (*vector)[i + 1]); return;} 
-	}
-	printf("Correct sort");
+bool isSorted(double* ar, int size) {
+
+    const double *previous_value = ar;
+
+    while (size) {
+       if (*ar < *previous_value)
+             return false;
+       previous_value = ar;
+
+       ++ar;
+       --size;
+     }
+     return true;
 }
 
-int main(void) 
-{
-    srand(time(NULL));
+
+int main(void) {
+	srand(time(NULL));
 	
-	int n = 999999;
-	std::vector <double> vec, vec2;
+	int size = 200;
+	int threads = 4;
 	
-	randomVec(n, &vec);
-	vec2 = vec;
-	
-	clock_t start = clock();
-	
-    quickSortParallel(8, n, &vec);
+    double* omp = new double[size];
+    double* seq = new double[size];
+    getRandomArray(omp, size);
     
+    for (int i = 0; i < size; i++) 
+	{
+		seq[i] = omp[i];
+	}
+    
+     
+    double begin; 
+    double finish; 
+    begin = omp_get_wtime(); 
+    quickSort__OMP(omp, threads, size);
+    finish = omp_get_wtime(); 
+    printf("(OMP) time for quicksort = %f seconds\n", finish - begin);
+
+    
+    clock_t start = clock();
+    quickSort(seq, 0, size - 1);
     clock_t end = clock();
 	float seconds = (float)(end - start) / CLOCKS_PER_SEC;
-    printf("(OMP) quicksort = %f \n", seconds);
+    printf("(Sequential) time for quicksort = %f \n", seconds);
     
-    
-    start = clock();
-    quickSort(&vec2, 0, n - 1);
-    end = clock();
-    seconds = (float)(end - start) / CLOCKS_PER_SEC;
-    printf("(Sequential) quicksort = %f \n", seconds);
-    
-    isSorted(&vec);
-    isSorted(&vec2);
-    
-    if ( vec == vec2 ) 
+    if ( isSorted(omp, size) ) 
+        printf("Correctly sorted\n");
+    else 
+        printf("Incorretly sorted\n");
+        
+    if ( isSorted(seq, size) ) 
+        printf("Correctly sorted\n");
+    else 
+        printf("Incorretly sorted\n");
+        
+
+    for (int i = 0; i < size; i++) 
 	{
-    	puts("\nequal");
+    	if (omp[i] != seq[i]) 
+		{
+    		puts("not equal"); break;
+    	}
     }
-    return 0;
+    
+    delete[]omp;
+    delete[]seq;
+    
+	return 0;
 }
