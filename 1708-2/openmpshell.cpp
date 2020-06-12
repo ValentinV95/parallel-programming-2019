@@ -101,22 +101,22 @@ int main()
 
 	cout << "array seq after sorting: ";
 	print(a, n);
-
+	
 
 	cout << "enter the size of the array" << endl;
 	cin >> n;
-	int arr[2000];
-	cout << "please enter the elements of the array" << endl;
+	int a[2000];
+
 	for (int i = 0; i < n; i++) {
 		cout << "enter the element of merge" << i << endl;
-		cin >> arr[i];
+		cin >> a[i];
 	}
 
-	mergeSort(arr, 0, n - 1);
+	mergeSort(a, 0, n - 1);
 
 	cout << "\tSorted Array Elements with shell" << endl;
 	for (int i = 0; i < n; i++) {
-		cout << arr[i] << "\t";
+		cout << a[i] << "\t";
 	}
 
 	ShellSort(a, n);
