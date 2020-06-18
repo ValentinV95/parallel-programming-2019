@@ -10,7 +10,7 @@
 #include <iostream>
 using namespace std;
 
-                                        /*  integration is running from here */
+                                        
 double f(double x) {
 
 	sqrt(x);
@@ -22,21 +22,22 @@ double f(double x) {
 int main() {
 	int n, i;
 	double a, b, h, x, sum = 0, integral;
-	                                     /*input of intervals */
+	                                     
 	cout << "Enter the number of intervals: " << endl;;
 	cin>> n;
 	cout << "\nEnter the minimum limit: " << endl;;
 	cin>>a;
 	cout << "\nEnter the final limit: " << endl;;
 	cin>>b;
-	                                    /*Trapezoidal Rule*/
+	                                    
 	h = fabs(b - a) / n;
 	for (i = 1; i < n; i++) {
 		x = a + i * h;
 		sum = sum + f(x);
 	}
 	integral = (h / 2)*(f(a) + f(b) + 2 * sum);
-	                                    /*value of integral */
+	                                   
+	
 	cout<<"\n The integral is: " << integral;
 }
 
