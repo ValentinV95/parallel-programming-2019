@@ -11,7 +11,7 @@
 #define NUM_THREADS 4
 using namespace std;
 
-//  integration is running from here 
+
 double f(double x) {
 
 	sqrt(x);
@@ -49,7 +49,7 @@ int main()
 
 
 
-	//input of intervals 
+	
 	cout << "Enter the number of intervals: " << endl;;
 	cin >> n;
 	cout << "\nEnter the minimum limit: " << endl;;
@@ -57,7 +57,7 @@ int main()
 	cout << "\nEnter the final limit: " << endl;;
 	cin >> b;
 
-	//Trapezoidal Rule
+	
 	h = fabs(b - a) / n;
 	local_n = n / thread_count;
 
@@ -69,7 +69,7 @@ int main()
 
 
 	integral = (h / 2)*(f(a) + f(b) + 2 * sum);
-	//  value of integral 
+	
 #pragma omp parallel num_threads(thread_count)
 	cout << "\n The integral is: " << integral << endl;
 
