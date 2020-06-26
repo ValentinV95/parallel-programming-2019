@@ -1,76 +1,99 @@
-#include <vector>
 #include <cstdlib>
 #include <time.h>
 #include <stdio.h>
+#include <limits.h>
 
-void quickSort(std::vector <double>* vector, int left, int right) {
-    while (right > left) 
+void quickSort(double* array, int left, int right)
+{
+    while (right > left)
 	{
         int iterate_left = left;
         int iterate_right = right;
-        double pivot = (*vector)[(left + right) >> 1];
+        double pivot = array[(left + right) >> 1];
 
-        while (iterate_left <= iterate_right) {
-            while ((*vector)[iterate_left] < pivot) 
+        while (iterate_left <= iterate_right)
+		{
+            while (array[iterate_left] < pivot)
 			{
                 iterate_left += 1;
             }
-            while ((*vector)[iterate_right] > pivot) 
+            while (array[iterate_right] > pivot)
 			{
                 iterate_right -= 1;
             }
-            if (iterate_left <= iterate_right) 
+            if (iterate_left <= iterate_right)
 			{
-                std::swap((*vector)[iterate_left], (*vector)[iterate_right]);
+                double temp = array[iterate_left];
+                array[iterate_left] = array[iterate_right];
+                array[iterate_right] = temp;
+
                 iterate_left += 1;
                 iterate_right -= 1;
             }
         }
 
-        if ((iterate_left << 1) > left + right) 
+        if ((iterate_left << 1) > left + right)
 		{
-            quickSort(vector, iterate_left, right);
+            quickSort(array, iterate_left, right);
             right = iterate_left - 1;
-        } 
-		else 
+        }
+		else
 		{
-            quickSort(vector, left, iterate_left - 1);
+            quickSort(array, left, iterate_left - 1);
             left = iterate_left;
         }
     }
 }
 
-void randomVec(int size, std::vector <double>* vector) 
+void getRandomArray(double* arr, int size)
 {
 	int i = 0;
 	double number;
-	while (i < size) 
+
+	while(i < size)
 	{
 		number = rand() / (RAND_MAX + 1.0);
-		(*vector).push_back(number);
+		arr[i] = number;
 		i += 1;
 	}
 }
 
-void isSorted(std::vector <double>* vector) 
-{
-	for (int i = 0; i < (*vector).size() - 1; i++) 
-	{
-		if ( (*vector)[i] > (*vector)[i+1]) {printf("Incorrect sort %f %f", (*vector)[i], (*vector)[i + 1]); return;} 
-	}
-	printf("Correct sort");
+bool isSorted(double* ar, int size) {
+    const double *previous_value = ar;
+
+    while (size) {
+       if (*ar < *previous_value)
+             return false;
+       previous_value = ar;
+
+       ++ar;
+       --size;
+     }
+     return true;
 }
 
-int main() 
-{
+int main(void) {
 	srand(time(NULL));
-	
-	int n = 100000;
-	std::vector <double> vec;
-	
-	randomVec(n, &vec);
-    quickSort(&vec, 0, n - 1);
-    isSorted(&vec);
-    
-    return 0;
+
+	int size = 20000;
+	int threads = 4;
+
+    double* seq = new double[size];
+    getRandomArray(seq, size);
+
+    clock_t start = clock();
+    quickSort(seq, 0, size - 1);
+    clock_t end = clock();
+	float seconds = (float)(end - start) / CLOCKS_PER_SEC;
+    printf("(Sequential) time for quicksort = %f \n", seconds);
+
+    if (!isSorted(seq, size)) {
+    	printf("Sorted incorrectly\n");
+    } else {
+		printf("Sorted correctly\n");
+	}
+
+    delete[]seq;
+
+	return 0;
 }
