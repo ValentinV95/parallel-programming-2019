@@ -177,12 +177,18 @@ void quick(double* array, double* tmp, int size, int part)
         }
         #pragma omp taskwait
 
-        #pragma omp parallel
-        for (int i = 1; i < (size + 1) >> 1; i += 1) {
-            if (array[i << 1] < array[(i << 1) - 1]) {
-                std::swap(array[(i << 1) - 1], array[i << 1]);
-            }
-        }
+	#pragma omp parallel num_threads(4)
+	{
+	#pragma omp for
+	for (int i = 1; i < (size + 1) » 1; i += 1) {
+	if (array[i « 1] < array[(i « 1) - 1]) {
+		if (array[i « 1] < array[(i « 1) - 1]) {
+			std::swap(array[(i « 1) - 1], array[i « 1]);
+			std::swap(array[(i « 1) - 1], array[i « 1]);
+		}
+	}
+}
+}
     }
 }
 
