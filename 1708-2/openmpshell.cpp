@@ -11,6 +11,35 @@
 using namespace std;
 
 //a[] is sort , n is size
+void ShellSort(int a[], int n)
+{
+	int gap;
+	int j;
+	int i;
+	int element;
+
+	for (gap = n / 2; gap > 0; gap /= 2)
+	{
+#pragma omp parallel for shared( a, gap,n) private(i,j,element) default(none)
+		for (i = gap; i < n; i++)
+		{
+#pragma omp parallel
+			element = a[i];
+			for (j = i; j >= gap; j -= gap)
+			{
+#pragma omp critical
+				if (element < a[j - gap])
+					a[j] = a[j - gap];
+
+			}
+
+			a[j] = element;
+
+		}
+	}
+}
+
+
 
 void merge(int a[], int n, int t[]) {
 	int i = 0;
@@ -43,36 +72,15 @@ void merge(int a[], int n, int t[]) {
 }
 
 
-
-
-
-void ShellSort(int a[], int n)
+void print(int a[], int size)
 {
-	int gap;
-	int j;
-	int i;
-	int element;
 
-	for (gap = n / 2; gap > 0; gap /= 2)
-	{
-#pragma omp parallel for shared( a, gap,n) private(i,j,element) default(none)
-		for (i = gap; i < n; i++)
-		{
-#pragma omp parallel
-			element = a[i];
-			for (j = i; j >= gap; j -= gap)
-			{
-#pragma omp critical
-				if (element < a[j - gap])
-					a[j] = a[j - gap];
-
-			}
-
-			a[j] = element;
-
-		}
-	}
+	for (int i = 0; i < size; i++)
+		cout << a[i] << "";
+	cout << endl;
 }
+
+
 
 void mergeSort(int a[], int t[], int n)
 {
@@ -94,21 +102,10 @@ void mergeSort(int a[], int t[], int n)
 
 
 		ShellSort(a, n);
-
+		merge(a, 0, n + t);
 
 	}
 }
-
-
-
-void print(int a[], int size)
-{
-
-	for (int i = 0; i < size; i++)
-		cout << a[i] << "";
-	cout << endl;
-}
-
 
 
 int main()
@@ -133,6 +130,7 @@ int main()
 
 	cout << "enter element:" << endl;
 	cin >> n;
+	/*
 	cout << "enter elements the one that you put earlier:" << endl;
 	for (int i = 0; i < n; i++)
 	{
@@ -147,19 +145,18 @@ int main()
 
 	cout << "array seq after sorting: ";
 	print(a, n);
-
-
-
+	*/
+	
 	cout << "enter the size of the array" << endl;
 	cin >> n;
 
 	cout << "please enter the elements of the array" << endl;
 	for (int i = 0; i < n; i++) {
-		cout << "enter the element of shell" << i << endl;
+		cout << "enter the element of shell:" << i << endl;
 		cin >> a[i];
 	}
-
-	//merge(a, n + 1, t);
+	print(a, n);
+	ShellSort(a, n);
 	mergeSort(a, 0, n - 1);
 
 	cout << "\tSorted Array Elements with shell" << endl;
@@ -170,13 +167,10 @@ int main()
 
 	ShellSort(a, n);
 	double endTime = clock();
-	int totalTime = endTime - startTime; // The average time to run this
+	int totalTime = endTime - startTime; 
 
 	cout << "This is the time it took to run.\n" << endl;
 	cout << totalTime / threads << n << endl;
-
-
-
 
 
 }
