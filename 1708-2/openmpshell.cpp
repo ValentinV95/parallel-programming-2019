@@ -141,30 +141,12 @@ int main()
 	print(a, n);
 	ShellSort(a, n);
 
-
-
 	cout << "array seq after sorting: ";
 	print(a, n);
-
-
-	cout << "enter the size of the array" << endl;
-	cin >> n;
-
-
-	for (int i = 0; i < n; i++) {
-		cout << "enter the element of merge" << i << endl;
-		cin >> a[i];
-	}
 	omp_set_num_threads(threads);
-#pragma omp parallel
-	{
-#pragma omp single
 
-		merge(a,n+1,t);
-
-	}
-
-	mergeSort(a, t + 1,n);
+	merge(a,n+1,t);
+	mergeSort(a, 0,n-1);
 
 	cout << "\tSorted Array Elements with shell" << endl;
 	for (int i = 0; i < n; i++) {
