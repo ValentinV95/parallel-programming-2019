@@ -5,10 +5,45 @@
 #include <time.h>
 #include <ctime>
 #include <cstdlib>
-
+#define MAX_SIZE 1000
 using namespace std;
 
 //a[] is sort , n is size
+
+void merge(int a[], int n, int t[]) {
+	int i = 0;
+	int j = n / 2;
+	int ti = 0;
+
+	while (i < n / 2 && j < n) {
+		if (a[i] < a[j]) {
+			t[ti] = a[i];
+			ti++; i++;
+		}
+		else {
+			t[ti] = a[j];
+			ti++; j++;
+		}
+	}
+	while (i < n / 2) 
+	{ 
+		t[ti] = a[i];
+		ti++; i++;
+	}
+	while (j < n) 
+	{ 
+
+		t[ti] = a[j];
+		ti++; j++;
+	}
+	memcpy(a, t, n * sizeof(int));
+
+}
+
+
+
+
+
 void ShellSort(int a[], int n)
 {
 	int gap;
@@ -31,13 +66,13 @@ void ShellSort(int a[], int n)
 
 			}
 
-					a[j] = element;
-			
+			a[j] = element;
+
 		}
 	}
 }
 
-void mergeSort(int a[], int t[], int n) 
+void mergeSort(int a[], int t[], int n)
 {
 #pragma omp parallel sections
 	if (n > 1) {
@@ -45,14 +80,20 @@ void mergeSort(int a[], int t[], int n)
 		for (int i = 0; i < n / 2; i++) {
 			t[i] = a[i];
 		}
-#pragma omp section
+#pragma omp task firstprivate(a,n,t)
 		mergeSort(a, t, n / 2);
 #pragma omp section
 		for (int i = n / 2; i < n; i++) {
 			t[i] = a[i];
 		}
+#pragma omp task firstprivate (a, n, t)
 		mergeSort(a, t, n / 2);
+#pragma omp taskwait
+
+#pragma omp task firstprivate (a, n)
 		ShellSort(a, n);
+	
+	
 	}
 }
 
@@ -69,12 +110,15 @@ void print(int a[], int size)
 
 
 int main()
+
 {
+	int threads = 2;
+	int  t[MAX_SIZE];
 	int n = 2000;
 	int a[2000];
 	int i;
 	srand((time(NULL)));
-
+	omp_set_nested(1);
 #pragma omp parallel for num_threads(i)
 	for (i = 0; i < n; i++)
 	{
@@ -90,34 +134,43 @@ int main()
 	for (int i = 0; i < n; i++)
 	{
 		cin >> a[i];
-		
+
 	}
 	cout << "array seq before sorting: ";
 
 	print(a, n);
 	ShellSort(a, n);
 
-	
+
 
 	cout << "array seq after sorting: ";
 	print(a, n);
-	
+
 
 	cout << "enter the size of the array" << endl;
 	cin >> n;
-	
+
 
 	for (int i = 0; i < n; i++) {
 		cout << "enter the element of merge" << i << endl;
 		cin >> a[i];
 	}
+	omp_set_num_threads(threads);
+#pragma omp parallel
+	{
+#pragma omp single
 
-	mergeSort(a, 0, n - 1);
+		merge(a,n+1,t);
+
+	}
+
+	mergeSort(a, t + 1,n);
 
 	cout << "\tSorted Array Elements with shell" << endl;
 	for (int i = 0; i < n; i++) {
 		cout << a[i] << "\t";
 	}
+
 
 	ShellSort(a, n);
 	double endTime = clock();
