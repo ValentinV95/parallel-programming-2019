@@ -4,45 +4,37 @@
 #include <limits.h>
 #include <iostream>
 
+template<typename T>
+void swp(T& a, T& b)
+{ T temp = a;
+  a = b;
+  b = temp;
+}
+
+int partition(double* arr, int low, int high)
+{
+    double pivot = arr[high];
+    int i = (low - 1);
+
+    for (int j = low; j <= high - 1; j++)
+    {
+        if (arr[j] < pivot)
+        {
+            i++;
+            swp(arr[i], arr[j]);
+        }
+    }
+    swp(arr[i + 1], arr[high]);
+    return (i + 1);
+}
+
 void qsrt(double* arr, int low, int high) {
-	int i;
-	double pivot, t;
-    if (low < high) {
-        i = (low - 1);
-    	pivot = arr[high];
+	if (low < high)
+    {
+        int pi = partition(arr, low, high);
 
-    	for (int j = low; j <= high - 1; j++)
-    	{
-        	if (arr[j] <= pivot)
-        	{
-            	i++;
-            	t = arr[i];
-    			arr[i] = arr[j];
-    			arr[j] = t;
-        	}
-    	}
-    	t = arr[i + 1];
-    	arr[i + 1] = arr[high];
-    	arr[high] = t;
-        qsrt(arr, low, i);
-
-		i = (low - 1);
-    	pivot = arr[high];
-
-    	for (int j = low; j <= high - 1; j++)
-    	{
-        	if (arr[j] <= pivot)
-        	{
-            	i++;
-            	t = arr[i];
-    			arr[i] = arr[j];
-    			arr[j] = t;
-        	}
-    	}
-    	t = arr[i + 1];
-    	arr[i + 1] = arr[high];
-    	arr[high] = t;
-        qsrt(arr, i + 1, high);
+        qsrt(arr, low, pi - 1);
+        qsrt(arr, pi + 1, high);
     }
 }
 
@@ -95,7 +87,7 @@ int main(void) {
 	}
 
 	//print everything
-	/*
+/*
 	for (int i = 0; i < size; i++)
         std::cout << seq[i] << " ";
     std::cout << std::endl;*/
@@ -104,4 +96,3 @@ int main(void) {
 
 	return 0;
 }
-
