@@ -3,6 +3,7 @@
 //clang++ -std=c++17 -g -DTBB_USE_DEBUG=1 tbbone.cpp -ltbb_debug -ltbbmalloc_debug -o tbbone.exe
 //clang++ -std=c++17 tbbone.cpp -ltbb -ltbbmalloc
 
+
 #include "pch.h"
 #include <iostream>
 #include "malloc.h"
@@ -13,107 +14,151 @@
 #include "tbb/tbb.h"
 #include <thread>
 #include <mutex>
+#include "tbb/parallel_sort.h"
 
 using namespace tbb;
 
-class ShellSort  {
-	int a[1000], n;
+#define MAX_SIZE 1000
 
 
-public :
+//a[] is sort , n is size
 
+void merge(int a[], int n, int t[]) {
+	int i = 0;
+	int j = n / 2;
+	int ti = 0;
 
-	  
-		void merge();
-		void print();
-		void sortmain();
-		void test_threading_building_blocks();
-	
-};
-
-
-
-void ShellSort::merge()
-{
-	std::cout << "type element: ";
-	std::cin >> n;
-	for (int i = 0; i < n; i++)
-		std::cin >> a[i];
-
-	if (n > 1) {
-		for (int i = 0; i < n / 2; i++) {
-			a[i] = a[i];
+	while (i < n / 2 && j < n) {
+		if (a[i] < a[j]) {
+			t[ti] = a[i];
+			ti++; i++;
 		}
-
-
+		else {
+			t[ti] = a[j];
+			ti++; j++;
+		}
 	}
+	while (i < n / 2)
+	{
+		t[ti] = a[i];
+		ti++; i++;
+	}
+	while (j < n)
+	{
 
-
+		t[ti] = a[j];
+		ti++; j++;
+	}
+	memcpy(a, t, n * sizeof(int));
 
 }
 
 
 
-void ShellSort::print() {
-	std::cout << "\n_print data_\n";
-	for (int i = 0; i < n; i++)
-		std::cout << a[i];
-	std::cout << "  ";
-}
 
 
-//t(temp) == element
-void ShellSort:: sortmain() {
-	int i;
-	int j;
-	int element;
+void ShellSort(int a[], int n)
+{
 	int gap;
+	int j;
+	int i;
+	int element;
 
-	for (gap = n / 2; gap > 0; gap /= 2) {
-		for (i = gap; i < n; i++) {
+	for (gap = n / 2; gap > 0; gap /= 2)
+		tbb::parallel_for(tbb::blocked_range<int>(0, gap),
+			[&](const tbb::blocked_range<int> &r) {
+				for (int i = r.begin(); i < r.end(); i++) {
+					merge(a + i, n - i, 0);
+				}
+			});
+
+	{
+
+		for (i = gap; i < n; i++)
+		{
+
 			element = a[i];
-			for (j = i; j >= gap; j -= gap) {
+			for (j = i; j >= gap; j -= gap)
+			{
+
 				if (element < a[j - gap])
 					a[j] = a[j - gap];
-				else
-					break;
+
 			}
+
 			a[j] = element;
+
 		}
 	}
 }
-//tbb code is taken from thomas kim video tutorial adn re edited
-void test_threading_building_blocks()
+
+void mergeSort(int a[], int t[], int n)
 {
-	std::mutex mutex;
-	using lock_type = std::lock_guard<std::mutex>;
 
-	auto callback = [&mutex](auto index)
-	{
-		lock_type lock(mutex);
-		std::cout << "thread Id"<< &ShellSort::sortmain <<std::this_thread::get_id()
-			<< " - index = " << index << std::endl;
+	if (n > 1) {
 
-	};
+		for (int i = 0; i < n / 2; i++) {
+			t[i] = a[i];
+		}
+
+	
+
+		for (int i = n / 2; i < n; i++) {
+			t[i] = a[i];
+		}
+		
 
 
-	tbb::parallel_for(1, 11, callback);
+		mergeSort(a, t, n / 2);
+
+		ShellSort(a, n);
+
+
+	}
+}
+
+
+
+
+void print(int a[], int size)
+{
+
+	for (int i = 0; i < size; i++)
+		std::cout << a[i];
+	std::cout<<"";
 }
 
 
 
 
 
+int main(int argc, char *argv[])
 
-
-
-int main() {
-	int n = 2000;
+{
+	int threads=2;
+	
+	int  t[MAX_SIZE];
+	int n =2000;
 	int a[2000];
+	int i;
 	
 
+	srand((time(NULL)));
 
-	double startTime = clock();
+
+	for (i = 0; i < n; i++)
+	{
+		a[i] = (rand() % 100000) + 1;
+
+	}
+	
+
+	tbb::tick_count start= tbb::tick_count::now();
+	tbb::tick_count stop = tbb::tick_count::now();
+
+	double maintimetbb, ParallelTime,ParallelTimeformerge;
+
+
 
 	std::cout << "enter element:";
 	std::cin >> n;
@@ -124,29 +169,78 @@ int main() {
 
 	}
 	std::cout << "array seq before sorting: ";
-	test_threading_building_blocks();
+	print(a, n);
 
-	//std::cout << "\t0___0\t";
-
-	ShellSort t;
-	t.merge();
-	t.print();
-	t.sortmain();
-	
-
-
-
-	double endTime = clock();
-	double totalTime = endTime - startTime; // The average time to run this
-
-	std::cout << "This is the time it took to run.\n";
-	std::cout << totalTime / 2000 << n;
+	std::cout << "\n maintimetbb " <<
+		(maintimetbb = ((tbb::tick_count::now()) - start).seconds());
+	start = tbb::tick_count::now();
 
 	
 
 
 	
+	//ShellSort(a, n);
+
+	std::cout << "\narray seq after sorting: ";
+	print(a, n);
+
+	
+
+	
+
+
+	std::cout << "\nenter the size of the array";
+	std::cin >> n;
+	for (int i = 0; i < n; i++)
+	{
+		std::cin >> a[i];
+
+	}
+	
+
+
+	std::cout << "\narray seq before sorting: ";
+
+	print(a, n);
+
+	
+	for (int i = 0; i < n; i++) {
+		std::cout << "\nenter the element of shell:" << i;
+		std::cin >> a[i];
+	}
+	print(a, n);
+
+	std::cout << "\nSorted Array Elements with shell:";
+	for (int i = 0; i < n; i++) {
+		std::cout << a[i] << "\t";
+	}
+
+	
+	
+	//mergeSort(a, t + 1, n);
+	ShellSort(a, n);
+	mergeSort(a, 0, n - 1);
+
+	parallel_sort(a, a + n);
+	std::cout << "\nParallelTime: ";
+	(ParallelTime = ((tbb::tick_count::now()) - stop).seconds());
+	stop = tbb::tick_count::now();
+
+
+	std::cout << (maintimetbb / ParallelTime ) << "\nmaintimetbb: ";
+	
+	ShellSort(a, n);
+	print(a, n);
+
 
 
 
 }
+
+
+
+
+
+
+
+
