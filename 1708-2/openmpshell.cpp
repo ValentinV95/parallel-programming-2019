@@ -1,10 +1,12 @@
 ﻿#include "pch.h"
+
 #include <iostream>
 #include "malloc.h"
 #include "omp.h"
 #include <time.h>
 #include <ctime>
 #include <cstdlib>
+#include <cstring>
 #define MAX_SIZE 1000
 using namespace std;
 
@@ -25,13 +27,13 @@ void merge(int a[], int n, int t[]) {
 			ti++; j++;
 		}
 	}
-	while (i < n / 2) 
-	{ 
+	while (i < n / 2)
+	{
 		t[ti] = a[i];
 		ti++; i++;
 	}
-	while (j < n) 
-	{ 
+	while (j < n)
+	{
 
 		t[ti] = a[j];
 		ti++; j++;
@@ -53,7 +55,7 @@ void ShellSort(int a[], int n)
 
 	for (gap = n / 2; gap > 0; gap /= 2)
 	{
-#pragma omp parallel for shared( a, gap,n) private(i) default(none)
+#pragma omp parallel for shared( a, gap,n) private(i,j,element) default(none)
 		for (i = gap; i < n; i++)
 		{
 #pragma omp parallel
@@ -74,26 +76,26 @@ void ShellSort(int a[], int n)
 
 void mergeSort(int a[], int t[], int n)
 {
-#pragma omp parallel sections
+
 	if (n > 1) {
-#pragma omp section
+
 		for (int i = 0; i < n / 2; i++) {
 			t[i] = a[i];
 		}
-#pragma omp task firstprivate(a,n,t)
+
 		mergeSort(a, t, n / 2);
-#pragma omp section
+
 		for (int i = n / 2; i < n; i++) {
 			t[i] = a[i];
 		}
-#pragma omp task firstprivate (a, n, t)
-		mergeSort(a, t, n / 2);
-#pragma omp taskwait
 
-#pragma omp task firstprivate (a, n)
+		mergeSort(a, t, n / 2);
+
+
+
 		ShellSort(a, n);
-	
-	
+
+
 	}
 }
 
@@ -113,12 +115,13 @@ int main()
 
 {
 	int threads = 2;
+
 	int  t[MAX_SIZE];
 	int n = 2000;
 	int a[2000];
 	int i;
 	srand((time(NULL)));
-	omp_set_nested(1);
+
 #pragma omp parallel for num_threads(i)
 	for (i = 0; i < n; i++)
 	{
@@ -141,12 +144,23 @@ int main()
 	print(a, n);
 	ShellSort(a, n);
 
+
 	cout << "array seq after sorting: ";
 	print(a, n);
-	omp_set_num_threads(threads);
 
-	merge(a,n+1,t);
-	mergeSort(a, 0,n-1);
+
+
+	cout << "enter the size of the array" << endl;
+	cin >> n;
+
+	cout << "please enter the elements of the array" << endl;
+	for (int i = 0; i < n; i++) {
+		cout << "enter the element of shell" << i << endl;
+		cin >> a[i];
+	}
+
+	//merge(a, n + 1, t);
+	mergeSort(a, 0, n - 1);
 
 	cout << "\tSorted Array Elements with shell" << endl;
 	for (int i = 0; i < n; i++) {
@@ -159,7 +173,7 @@ int main()
 	int totalTime = endTime - startTime; // The average time to run this
 
 	cout << "This is the time it took to run.\n" << endl;
-	cout << totalTime / 2000 << n << endl;
+	cout << totalTime / threads << n << endl;
 
 
 
