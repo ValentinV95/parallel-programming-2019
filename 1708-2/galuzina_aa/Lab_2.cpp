@@ -1,138 +1,75 @@
 #include <omp.h>
-#include <ctime>
+#include <math.h>
+#include <stdio.h>
+#include <time.h>
 #include <iostream>
-
+#include <vector>
 using namespace std;
 
-void Shell_sort(int* Massive, int Size_M) {
-    for (int i = Size_M / 2; i > 0; i /= 2)
-    {
-        for (int s = i; s < Size_M; s++)
-        {
-            int r;
-            int a = Massive[s];
-            for (r = s; r >= i; r -= i)
-            {
-                if (a < Massive[r - i])
-                    Massive[r] = Massive[r - i];
-                else
-                    break;
-            }
-            Massive[r] = a;
-        }
-    }
-}
-
-void Splitter(int* Massive, int* Middle, int Size_S, int Size_E) {
-    for (int i = 0; i < Size_S; i += 2)
-        Middle[i] = Massive[i];
-    int* Massive_Sec = Massive + Size_S;
-    int c = 0, b = 0, s = 0; 
-    while ((c < Size_S) && (b < Size_E)) 
-    {
-        if (Middle[c] <= Massive_Sec[b])
-        {
-            Massive[s] = Middle[c];
-            c += 2;
-        }
-        else 
-        {
-            Massive[s] = Massive_Sec[b];
-            b += 2;
-        }
-        s += 2;
-    }
-    if (c == Size_S) 
-    {
-        for (int j = b; j < Size_E; j += 2, s += 2)
-            Massive[s] = Massive_Sec[j];
-    }
-    else 
-    {
-        for (int j = c; j < Size_S; j += 2, s += 2)
-            Massive[s] = Middle[j];
-    }
-}
-
-void Odd_Splitter(int* Massive, int* Middle, int Size_S, int Size_E) {
-    for (int i = 1; i < Size_S; i += 2)
-        Middle[i] = Massive[i];
-    int* Massive_Sec = Massive + Size_S;
-    int c = 1, b = 1, s = 1;
-    while ((c < Size_S) && (b < Size_E)) 
-    {
-        if (Middle[c] <= Massive_Sec[b]) 
-        {
-            Massive[s] = Middle[c];
-            c += 2;
-        }
-        else 
-        {
-            Massive[s] = Massive_Sec[b];
-            b += 2;
-        }
-        s += 2;
-    }
-    if (c == Size_S) 
-    {
-        for (int j = b; j < Size_E; j += 2, s += 2)
-            Massive[s] = Massive_Sec[j];
-    }
-    else 
-    {
-        for (int j = c; j < Size_S; j += 2, s += 2)
-            Massive[s] = Middle[j];
-    }
-}
-
-void Comparator(int* Massive, int Size_M) 
+void Even_Odd_Merge(vector<int>* Massive) 
 {
-    for (int i = 1; i < (Size_M + 1) / 2; i++)
-        if (Massive[2 * i] < Massive[2 * i - 1])
-        {
-            int Middle = Massive[2 * i - 1];
-            Massive[2 * i - 1] = Massive[2 * i];
-            Massive[2 * i] = Middle;
-        }
-}
-
-void Parallel_sort(int* Massive, int Size_M, int Proc_N) 
-{
-    if (Proc_N == 1)
-        Shell_sort(Massive, Size_M);
-    else 
+    const int LEN = Massive->size();
+    int TS = static_cast<int>(ceil(log2(LEN))), PS = static_cast<int>(pow(2, TS - 1));
+    while (PS > 0) 
     {
-        int* Middle = new int[Size_M];
-        int Packet = Size_M / Proc_N;
-        #pragma omp parallel shared(Massive, Size_M, Packet, Proc_N, Middle) num_threads(Proc_N)
+        int q = static_cast<int>(pow(2, TS - 1)), r = 0, d = PS;        
+        while (d > 0) 
         {
-            int Current_Proc = omp_get_thread_num();
-            int start = Current_Proc * Packet;
-            Shell_sort(Massive + start, Packet);
-            #pragma omp barrier
-            int Batcher = Proc_N;
-            int Size = Packet;
-            while (Batcher != 1)
+            #pragma omp parallel for  shared(Massive)
+            for (int i = 0; i < LEN - d; ++i)
             {
-                if (Current_Proc % 2 == 0 && Current_Proc < Batcher)
-                    Splitter(Massive + Current_Proc * Size, Middle + Current_Proc * Size, Size, Size);
-                if (Current_Proc % 2 == 1 && Current_Proc < Batcher)
+                if ((i & PS) == r) 
                 {
-                    int t = Current_Proc - 1;
-                    Odd_Splitter(Massive + t * Size, Middle + Current_Proc * Size, Size, Size);
+                    if (Massive->at(i) > Massive->at(i + d))
+                        iter_swap(Massive->begin() + i, Massive->begin() + i + d);
                 }
-                #pragma omp barrier
-                if (Current_Proc % 2 == 0 && Current_Proc < Batcher)
-                    Comparator(Massive + Current_Proc * Size, Size * 2);
-                #pragma omp barrier
-                Batcher /= 2;
-                Size *= 2;
             }
+            d = q - PS;
+            q /= 2;
+            r = PS;
         }
-        delete[] Middle;
+        PS /= 2;
     }
 }
 
+
+int STEP(int ITR) 
+{
+    int ST = 0;
+    if (ITR % 2)
+        ST = static_cast<int>(8 * pow(2, ITR) - 6 * pow(2, (ITR + 1) / 2) + 1);
+    else 
+        ST = static_cast<int>(9 * pow(2, ITR) - 9 * pow(2, ITR / 2) + 1);
+    return ST;
+}
+
+void Batcher(vector<int>* Massive, const int ST) 
+{
+    vector<int>* Middle = new vector<int>;
+    #pragma omp for
+    for (int STR = 0; STR < ST; STR++)
+    {
+        for (unsigned int i = STR, j = 0; i < Massive->size(); i += ST, j++)
+            Middle->push_back(Massive->at(i));
+        Even_Odd_Merge(Middle);
+        unsigned int i = STR, j = 0;
+        for (; i < Massive->size() - STR; i += ST, j++)
+            Massive->at(i) = Middle->at(j);
+        Middle->clear();
+    }
+}
+
+void Shell_sort(vector<int>* Massive, int Size_M) 
+{
+    int ST = 0, ITR = 0;
+    while (STEP(ITR++) < Size_M / 3)
+        ST = STEP(ITR);
+    while (--ITR >= 0)
+    {
+        ST = STEP(ITR);
+        Batcher(Massive, ST);
+    }
+}
 
 int main() 
 {
@@ -150,38 +87,31 @@ int main()
     }
     cout << "\n\nВведите количество потоков: ";
     cin >> Proc_N;
-    if (Proc_N <= 0 )
+    if (Proc_N <= 0)
     {
         cout << "\n\n\tНекорректный ввод!\nКоличество потоков должно быть больше нуля!\n\n";
         system("pause");
         return 0;
     }
-
-    int* Massive = new int[Size_M];
+    
+    vector<int>* Massive = new vector<int>(Size_M);
     cout << "\n\nСгенерированный неотсортированный массив: ";
     for (int i = 0; i < Size_M; i++)
     {
-        Massive[i] = rand() % Size_M;
-        cout << Massive[i] << " ";
-        if (i == 100)
-        {
-            cout << " ... ";
-            break;
-        }
+        Massive->at(i) = rand() % Size_M;
+        if (i < 100)
+            cout << Massive->at(i) << " ";
     }
-    cout << "\n\n";
     Time_Start = omp_get_wtime();
-    Parallel_sort(Massive, Size_M, Proc_N);
+    omp_set_num_threads(Proc_N);
+    Shell_sort(Massive, Size_M);
     Time_End = omp_get_wtime();
-    cout << "Отсортированный массив:\t\t\t  ";
+
+    cout << "\n\nОтсортированный массив:\t\t\t  ";
     for (int i = 0; i < Size_M; i++)
-    {
-        cout << Massive[i] << " ";
-        if (i == 100)
-        {
-            cout << " ... ";
-            break;
-        }
+    {      
+        if (i < 100)
+            cout << Massive->at(i) << " ";
     }
     cout << "\n\nВремя обработки составило: " << Time_End - Time_Start << " секунд.\n\n";
     system("pause");
