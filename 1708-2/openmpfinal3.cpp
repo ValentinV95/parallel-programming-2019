@@ -134,6 +134,8 @@ int main() {
 
 	printarray(numbers, array_size);
 
+	shellsort(numbers, array_size);
+
 	cout << "array seq after sorting: ";
 	printarray(numbers, array_size);
 
