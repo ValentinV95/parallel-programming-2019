@@ -14,7 +14,6 @@
 #include <thread>
 #include <csignal>
 
-using namespace std;
 
 #define MAX_SIZE 1000
 
@@ -85,8 +84,8 @@ void print(int a[], int size)
 {
 
 	for (int i = 0; i < size; i++)
-		cout << a[i] << "";
-	cout << endl;
+		std::cout << a[i] << "";
+	std::cout << std::endl;
 }
 
 
@@ -148,25 +147,25 @@ int main()
 
 	double startTime = clock();
 
-	cout << "enter element:" << endl;
-	cin >> n;
+	std::cout << "enter element:" << std::endl;
+	std::cin >> n;
 	
-	cout << "enter elements the one that you put earlier:" << endl;
+	std::cout << "enter elements the one that you put earlier:" << std::endl;
 	for (int i = 0; i < n; i++)
 	{
-		cin >> a[i];
+		std::cin >> a[i];
 	}
-	cout << "array seq before sorting: ";
+	std::cout << "array seq before sorting: ";
 	print(a, n);
 	ShellSort(a, n);
-	cout << "array seq after sorting: ";
+	std::cout << "array seq after sorting: ";
 	print(a, n);
 
 
 	print(a, n);
 	int part = n / threads;
 
-	cout << "thread:\t ";
+	std::cout << "thread:\t ";
 	ShellSort_parallel(a, n, part);
 
 	print(a, n);
@@ -175,21 +174,21 @@ int main()
 
 
 
-	cout << "enter the size of the array" << endl;
-	cin >> n;
+	std::cout << "enter the size of the array" << std::endl;
+	std::cin >> n;
 
-	cout << "please enter the elements of the array" << endl;
+	std::cout << "please enter the elements of the array" <<std:: endl;
 	for (int i = 0; i < n; i++) {
-		cout << "enter the element of shell:" << i << endl;
-		cin >> a[i];
+		std::cout << "enter the element of shell:" << i << std::endl;
+		std::cin >> a[i];
 	}
 	print(a, n);
 	ShellSort(a, n);
 	mergeSort(a, 0, n - 1);
 
-	cout << "\tSorted Array Elements with shell" << endl;
+	std::cout << "\tSorted Array Elements with shell" << std::endl;
 	for (int i = 0; i < n; i++) {
-		cout << a[i] << "\t";
+		std::cout << a[i] << "\t";
 	}
 
 
@@ -211,8 +210,8 @@ int main()
 	double endTime = clock();
 	int totalTime = endTime - startTime;
 
-	cout << "This is the time it took to run.\n" << endl;
-	cout << totalTime / threads << n << endl;
+	std::cout << "This is the time it took to run.\n" <<std:: endl;
+	std::cout << totalTime / threads << n << std::endl;
 
 
 }
