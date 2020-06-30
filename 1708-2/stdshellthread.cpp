@@ -1,4 +1,4 @@
-// shellsortsequence.cpp : This file contains the 'main' function. Program execution begins and ends there.
+
 //COPYRIGHT UTSHO_MOMEN
 #include "pch.h"
 #include <cstring>
@@ -150,7 +150,7 @@ int main()
 
 	cout << "enter element:" << endl;
 	cin >> n;
-	/*
+	
 	cout << "enter elements the one that you put earlier:" << endl;
 	for (int i = 0; i < n; i++)
 	{
@@ -161,7 +161,19 @@ int main()
 	ShellSort(a, n);
 	cout << "array seq after sorting: ";
 	print(a, n);
-	*/
+
+
+	print(a, n);
+	int part = n / threads;
+
+	cout << "thread:\t ";
+	ShellSort_parallel(a, n, part);
+
+	print(a, n);
+
+
+
+
 
 	cout << "enter the size of the array" << endl;
 	cin >> n;
@@ -187,8 +199,10 @@ int main()
 
 	print(a, n);
 	int part = n / threads;
-	ShellSort_parallel(a,n, part);
-
+	if (n < 100) {
+		std::cout << "Sorted array:\t ";
+		ShellSort_parallel(a, n, part);
+	}
 	print(a, n);
 
 
